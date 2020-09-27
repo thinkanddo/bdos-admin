@@ -1,0 +1,301 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: bconsole
+  name: bconsole
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: bconsole
+  template:
+    metadata:
+      labels:
+        app: bconsole
+        podevent: bconsole
+      name: bconsole
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "{{pinpoint.switch}}"
+        - name: PINPOINT_SERVER_IP
+          value: "{{pinpoint.server_ip}}"
+        - name: PINPOINT_TCP_PORT
+          value: "{{pinpoint.tcp_port}}"
+        - name: PINPOINT_STAT_PORT
+          value: "{{pinpoint.stat_port}}"
+        - name: PINPOINT_SPAN_PORT
+          value: "{{pinpoint.span_port}}"
+        - name: POD_TENANT_NAME
+          value: "{{namespace}}"
+        - name: POD_SERVICE_NAME
+          value: bconsole
+        - name: JAVA_OPTS
+          value: -Xms2048M -Xmx7144M -XX:PermSize=512M -XX:MaxNewSize=1024M -XX:MaxPermSize=1024M -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.bconsole}}
+        imagePullPolicy: Always
+        name: bconsole
+        resources:
+          limits:
+            cpu: "4"
+            memory: 10Gi
+          requests:
+            cpu: "1"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /usr/local/tomcat/webapps/bconsole/WEB-INF/classes/application.properties
+          name: cf-bconsole
+          subPath: application.properties
+        - mountPath: /usr/local/tomcat/webapps/bconsole/WEB-INF/classes/logback.xml
+          name: cf-bconsole
+          subPath: logback.xml
+      imagePullSecrets:
+      - name: harbor-secret
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: application.properties
+            path: application.properties
+          - key: logback.xml
+            path: logback.xml
+          name: bconsole
+        name: cf-bconsole
+---
+##################         Service           ##################
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bconsole
+    svcevent: bconsole
+  name: bconsole
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: bconsole
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: bconsole
+  type: ClusterIP
+---
+##################         ingress         ##################
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1200"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1200"
+    nginx.ingress.kubernetes.io/proxy-body-size: 3G
+    nginx.ingress.kubernetes.io/proxy-redirect-from: ~*http://([a-z]*):([0-9]*)/(.*)
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+  name: {{ingress_domain}}.bconsole
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: bconsole
+          servicePort: 8080
+        path: /bconsole
+---
+##################         ConfigMap         ##################
+apiVersion: v1
+data:
+  application.properties: |
+    server.port = 8080
+    spring.mvc.view.prefix=/WEB-INF/pages/
+    spring.mvc.view.suffix=.jsp
+    server.servlet.context-path=/xbconsole
+    server.servlet.session.timeout = 3600
+    jasypt.encryptor.password=EbfYkitulv73I2p0mXI50JMXoaxZTKJ7
+    
+    #国际化
+    spring.messages.encoding=UTF-8
+    spring.messages.basename=i18n/messages
+    
+    js.casServerUrlPrefix=/cas
+    js.serverName={{ingress_domain}}
+    js.securityServiceURL=/security
+    js.portalUrl=/portal
+
+    #是否单点登录
+    base.platform.enable=true
+
+    #是启动计划任务
+    base.platform.quartzConfigInit=true
+
+    #登录才能访问的例外地址
+    base.platform.skipUrls=.*/v1/serflow.*,.*/resource/quota/tenant/api/.*,.*/v1/serAppsCount/.*,.*/mall/.*,.*/login/toLogin,.*/login/loginerror,.*/login/actionLogin,.*/resources/.*,.*/theme/.*,.*/ApisEmploy/*,.*/error,.*/v1/component/.*,.*/api/product/.*,.*/v1/mall/.*,.*/v1/feedback/.*,/resources/.*,/theme/.*,/,.*/api/.*,.*/tenantId/.*,,.*/productOrder/.*,.*/bpmOrderProcess/.*,.*/monitor/api/machine/get,.*/apisEmploy/.*,.*/soap/.*,.*/rest/.*,/out.jsp,/noauth,/index.jsp,/ssoerror.html,/monitor.jsp,/struts/.*,.*/ruleTypeList,.*/ruleType,.*/monitor,.*css$,.*js$,.*jpg$,.*jpeg$,.*bmp$,.*png$,.*gif$,.*ico$,/dockingController/updateApiState,/propconfig/.*
+
+    #跨域过滤器顺序
+    base.platform.cors.order=3
+
+    #单点登录过滤器配置
+    base.platform.sso.name=SSOFilter
+    base.platform.sso.serverName=bconsole:8080
+    base.platform.sso.casServerUrlPrefix=http://cas:8080/cas
+    base.platform.sso.casServerLoginUrl=http://cas:8080/cas/login
+    base.platform.sso.singleSignOut=true
+    base.platform.sso.loginUserHandle=com.bonc.security.sso.SSOAuthHandle
+    base.platform.sso.analogLoginCASCheck=
+    base.platform.sso.characterEncoding=UTF-8
+    base.platform.sso.encoding=UTF-8
+    base.platform.sso.order=1
+
+    #单点登录本地过滤器配置
+    base.platform.loginHandlerConf.name=LoginHandlerFilter
+    base.platform.loginHandlerConf.order=2
+    
+    #防xss攻击的链接过滤
+    base.platform.xss.xssUrl=/v1/pageModel/.*,/resource/quota/tenant/api/.*,/v1/pageModule/.*,/v1/pageRes/.*,/v1/pageType/.*,.*\\.(css|js|jpg|jpeg|bmp|png|gif|ico|htm|aspx)$
+    base.platform.xss.order=4
+    
+    #BPM配置
+    bpm.context.url=http://bpm:8080/bpm
+    bpm_process_canuse_category=new node1
+    #BDOS配置
+    bdos.context.url=http://bdos:8080/bdos
+    bdos.websocket.context.url=
+
+    #大数据组件配置
+    bigdata.context.url=http://172.16.40.1:20003
+
+    #blogic监控配置
+    blogic.context.url=http://blogic:8080/blogic
+    
+    #数据库参数配置
+    spring.datasource.enable-multi-tenant=false
+    spring.datasource.type=org.apache.tomcat.jdbc.pool.DataSource
+    spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+    spring.datasource.driverClassName=com.mysql.jdbc.Driver
+    spring.datasource.url= jdbc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.bconsole}}?characterEncoding=utf-8&autoReconnect=true
+    spring.datasource.username={{mysql.username}}
+    spring.datasource.password={{mysql.password}}
+       
+    
+    spring.datasource.initialSize=5
+    spring.datasource.minIdle=5
+    spring.datasource.maxActive=20
+    spring.datasource.maxWait=60000
+    spring.datasource.timeBetweenEvictionRunsMillis=60000
+    spring.datasource.minEvictableIdleTimeMillis=300000
+    spring.datasource.validationQuery=SELECT 1 FROM DUAL
+    spring.datasource.testWhileIdle=true
+    spring.datasource.testOnBorrow=false
+    spring.datasource.testOnReturn=false
+    spring.datasource.poolPreparedStatements=true
+    spring.datasource.maxPoolPreparedStatementPerConnectionSize=20
+    spring.datasource.filters=stat,wall,log4j
+    
+    #mybatis配置文件路径设置
+    mybatis.config-location=classpath:mybatis-config.xml
+
+    #mybatis日志等级配置
+    logging.level.TAlarmInformationMapper=error
+
+    #定时任务配置--无需修改
+    quartz.open-cluster=false
+    # 集群配置文件路径
+    quartz.config-location=/quartz.properties
+    # 集群数据库，使用当前数据库可以设置为空或者default
+    quartz.data-source=default
+
+    #日志设置
+    log4j.rootLogger=ERROR,system.out
+    log4j.appender.system.out=org.apache.log4j.ConsoleAppender
+    log4j.appender.system.out.layout=org.apache.log4j.PatternLayout
+    log4j.appender.system.out.layout.ConversionPattern=[Log] %5p[%F:%L]:%m%n
+
+    #config this Project.file logger
+    log4j.logger.thisProject.file=ERROR,thisProject.file.out
+    log4j.appender.thisProject.file.out=org.apache.log4j.DailyRollingFileAppender
+    log4j.appender.thisProject.file.out.File=logContentFile.log
+    log4j.appender.thisProject.file.out.layout=org.apache.log4j.PatternLayout
+
+    #上传文件大小配置
+    multipart.enabled=true
+    multipart.max-file-size=5120Mb
+    multipart.max-request-size=10240Mb
+
+    spring.servlet.multipart.max-file-size=5120Mb
+    spring.servlet.multipart.max-request-size=10240Mb
+
+    #ftp设置
+    ftp.xbconsole.enabled=true
+    ftp.xbconsole.host={{ftp.ip}}
+    ftp.xbconsole.port={{ftp.port}}
+    ftp.xbconsole.username={{ftp.username}}
+    ftp.xbconsole.password={{ftp.password}}
+    ftp.xbconsole.encoding=UTF-8
+
+    #security配置
+    security.appCode = bconsole
+    security.apiType=REST
+    security.securityServiceURL=http://security:8080/security
+    security.sqltranforms=com.bonc.security.transform.TenantSQLTransform,com.bonc.security.transform.PrivilegeSQLTransform
+
+    spring.jackson.serialization.write-dates-as-timestamps = true
+
+    #比特云授权配置
+    base.platform.bit.url = http://172.16.3.30:8273
+    base.platform.bit.sn = R2HZXDUPDLVHVFWK
+    
+  logback.xml: |-
+    <?xml version="1.0" encoding="UTF-8"?>
+    <configuration>
+        <!--定义日志文件的存储地址 勿在 LogBack 的配置中使用相对路径-->  
+       <!--  <property name="LOG_HOME" value="/usr/local/logback/xIntegration"/> -->  
+        <property name="LOG_LEVEL" value="ERROR" /> 
+        <property name="LOG_HOME" value="logs" /> 
+        <!-- 控制台输出 -->   
+        <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder"> 
+                 <!--格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符--> 
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>   
+            </encoder> 
+        </appender>
+        <!-- 按照每天生成日志文件 -->   
+        <appender name="FILE"  class="ch.qos.logback.core.rolling.RollingFileAppender">   
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <!--日志文件输出的文件名-->
+                <FileNamePattern>${LOG_HOME}/bcos.%d{yyyy-MM-dd}.log</FileNamePattern> 
+                <!--日志文件保留天数-->
+                <MaxHistory>30</MaxHistory>
+            </rollingPolicy>   
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder"> 
+                <!--格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符--> 
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>   
+            </encoder> 
+            <!--日志文件最大的大小-->
+           <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+             <MaxFileSize>10MB</MaxFileSize>
+           </triggeringPolicy>
+        </appender> 
+      
+        <!--myibatis log configure -->
+      <logger name="com.apache.ibatis" level="ERROR" />
+      <logger name="java.sql.Connection" level="ERROR" />
+      <logger name="java.sql.Statement" level="ERROR" />
+      <logger name="java.sql.PreparedStatement" level="ERROR" />
+    
+        <!-- 日志输出级别 -->
+        <root level="${LOG_LEVEL}">
+            <appender-ref ref="STDOUT" />
+            <appender-ref ref="FILE" />
+        </root> 
+    </configuration>
+kind: ConfigMap
+metadata:
+  name: bconsole
+  namespace: {{namespace}}

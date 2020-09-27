@@ -1,0 +1,69 @@
+---
+- hosts: localhost
+  sudo: yes
+  vars:
+    work_dir: "{{boots_global.SYSTEM_WORK_DIR}}"
+    work_name: "bcos-admin"
+    tools_dir: "bcos-tools"
+    latest_tag: "latest"
+    tools_path: "{{boots_global.SYSTEM_WORK_DIR}}/bcos-tools"
+    cur_tag: "{{boots_global.SYSTEM_CUR_VERSION}}"
+    sys_target_tag: "{{boots_global.SYSTEM_TARGET_VERSION}}"
+    target_dir: "{{sys_target_tag.split('_')[0]}}"
+    target_tag: "{{(sys_target_tag==latest_tag)|ternary('',sys_target_tag)}}"
+    package_name: "bcos-admin-{{boots_global.SYSTEM_CUR_VERSION}}-{{boots_global.SYSTEM_TARGET_VERSION}}.tar"
+    package_dir: "package"
+    version:
+      repo:
+    admin: 
+      package: "{{work_dir}}/{{work_name}}"
+      path: "{{work_dir}}"
+      target: "{{work_dir}}/{{package_dir}}"
+      execute:
+      - cache
+      - .git
+      - .gitignore
+      - roles/harbor/files
+      - roles/deploy/files/{devops,boots.jar}
+      - roles/deploy/templates/boots.sql
+      - roles/bcos/templates/db
+      - roles/es/files
+      - pub
+      - package.sh
+      - update.sh
+      - "*.retry"
+    boots:
+      package: boots.jar
+      path: "{{work_dir}}/bcos-boots/target"
+      target: "{{admin.package}}/{{package_dir}}/roles/deploy/files"
+    harbor_info:
+      target: "{{admin.package}}/roles/harbor/files"
+    repo:
+      package: pub
+      path: "{{work_dir}}/{{tools_dir}}/repo/{{version.repo}}"
+      target: "{{admin.package}}"
+    devops:
+      package: devops
+      path: "{{boots_global.COMPOSE_JENKINS_IP}}/devops_package_delta/{{cur_tag}}-{{target_tag}}"
+      target: "{{admin.target}}/{{work_name}}/roles/deploy/files"
+    ftp:
+      ip: "{{boots_global.COMPOSE_FTP_IP}}"
+      port: "{{boots_global.PORT_FTP_CONTROL}}"
+      username: "{{boots_global.COMPOSE_FTP_USERNAME}}"
+      password: "{{boots_global.COMPOSE_FTP_PASSWORD}}"
+  roles:
+  - role: deploy
+    vars:
+      role_step: make_upgrade.yml
+  post_tasks:
+  - name: 提交tag数据
+    vars:
+      pack_info:
+        curVersion: "{{cur_tag}}"
+        targetVersion: "{{sys_target_tag}}"
+        packageName: "{{package_name}}"
+        packageSize: "{{package_size.stdout}}"
+        packagePath: "BCOS/V{{target_dir}}/02-upgrade-pack/"
+        ftpLink: "ftp://{{ftp.username}}:{{ftp.password}}@{{ftp.ip}}:{{ftp.port}}/"
+        type: "1"
+    shell: "curl -X POST {{boots_global.SYSTEM_CALLBACK_URL}}/pack?pack={{pack_info|to_json|urlencode}}"

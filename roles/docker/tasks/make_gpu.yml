@@ -1,0 +1,10 @@
+- name: 安装nvidia-container-runtime插件
+  vars:
+    packages:
+    - nvidia-container-runtime
+  yum: name={{packages}} state=installed update_cache=yes
+
+- name: 启动docker
+  service: name=docker state=stopped enabled=yes
+
+- include: start.yml

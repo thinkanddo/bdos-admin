@@ -1,0 +1,27 @@
+---
+- hosts: ceph_client
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: add_client.yml
+      ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+      ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+      ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+      mnt_dir: "{{boots_global.COMPOSE_CEPH_MDS_MOUNT_POINT}}"
+
+
+- hosts: ceph_client
+  tasks:
+  - name: 保存ceph_client角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.ceph_client[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+#- hosts: localhost
+#  tasks:
+#  - name: 保存全局信息
+#    vars:
+#      ansible_global:
+#        CEPH_ENABLE: "true"
+#    shell: curl -X POST {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}

@@ -1,0 +1,15 @@
+- name: 清理kubelet
+  shell: kubeadm reset -f
+
+- name: 打印join命令
+  debug: msg="kubeadm join --token {{master_token}} {{k8s_endpoint}} --ignore-preflight-errors=all --discovery-token-unsafe-skip-ca-verification {{(inventory_hostname in master_node)|ternary('--experimental-control-plane --certificate-key '~certificate_key,'')}}"
+
+- name: 启动kubelet服务
+  service: name=kubelet state=restarted enabled=yes
+
+#--ignore-preflight-errors=all
+- name: 将节点加入k8s
+  shell: kubeadm join --token {{master_token}} {{k8s_endpoint}} --discovery-token-unsafe-skip-ca-verification {{(inventory_hostname in master_node)|ternary("--experimental-control-plane --certificate-key "~certificate_key,"")}}
+
+- name: 启动kubelet服务
+  service: name=kubelet state=restarted enabled=yes

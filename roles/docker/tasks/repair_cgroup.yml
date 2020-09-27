@@ -1,0 +1,6 @@
+- name: 执行cgroup 挂载修复
+  script: cgroupfs-mount.sh
+
+- name: 启动docker
+  service: name=docker state=restarted
+

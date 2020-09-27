@@ -1,0 +1,144 @@
+---
+- hosts: etcd
+  sudo: yes
+  serial: 1
+  vars_files:
+  - images.yaml
+  - upgrade
+  pre_tasks:
+  - name: 获取当前etcd 镜像版本
+    shell: docker ps | grep etcd
+    register: etcd_info
+  roles:
+  - role: etcd
+    vars:
+      role_step: upgrade.yml
+      etcd_peer_port: "{{boots_global.PORT_ETCD_PEER}}"
+      etcd_client_port: "{{boots_global.PORT_ETCD_CLIENT}}"
+      etcd_cluster_state: new
+      etcd_mount_path: "/var/lib/etcd"
+    when: ("k8s" in upgrade.version) and (upgrade.images.etcd not in etcd_info.stdout)
+
+# 备份master 配置
+- hosts: master
+  sudo: yes
+  serial: 1
+  vars_files:
+  - images.yaml
+  - upgrade
+  pre_tasks:
+  - name: 引入应用版本
+    include_vars: file=version name=version
+  - name: 获取k8s 版本
+    shell: kubelet --version | awk '{print $2}' | sed 's/^.//'
+    register: k8s_version
+  roles:
+  - role: k8s
+    vars:
+      role_step: upgrade.yml
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+    when: ("k8s" in upgrade.version and k8s_version.stdout is version(upgrade.version.k8s,'<'))
+  - role: k8s
+    vars:
+      role_step: upgrade_master.yml
+      secure_port_ha_tmp: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP != '')|ternary(secure_port_ha_tmp,boots_global.PORT_K8S_SECURE)}}"
+      virtual_ip: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(groups.master[0], boots_global.COMPOSE_K8S_VIRTUAL_IP)}}"
+      secure_port: "{{boots_global.PORT_K8S_SECURE}}"
+      insecure_port: "{{boots_global.PORT_K8S_INSECURE}}"
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+      pod_subnet: "{{boots_global.COMPOSE_K8S_POD_SUBNET}}"
+      service_node_port_range: "{{boots_global.PORT_K8S_SERVICE_NODE_MIN}}-{{boots_global.PORT_K8S_SERVICE_NODE_MAX}}"
+    when: ("k8s" in upgrade.version and k8s_version.stdout is version(upgrade.version.k8s,'<'))
+
+- hosts: node
+  sudo: yes
+  serial: 1
+  vars_files:
+  - images.yaml
+  - upgrade
+  pre_tasks:
+  - name: 引入应用版本
+    include_vars: file=version name=version
+  - name: 获取k8s 版本
+    shell: kubelet --version | awk '{print $2}' | sed 's/^.//'
+    register: k8s_version
+  roles:
+  - role: k8s
+    vars:
+      role_step: upgrade.yml
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+    when: ("k8s" in upgrade.version and k8s_version.stdout is version(upgrade.version.k8s,'<'))
+
+## 升级k8s 相关插件
+- hosts: master[0]
+  sudo: yes
+  vars:
+    data_path: "{{boots_global.SYSTEM_WORK_DIR}}/data"
+    yaml_path: "{{data_path}}/yaml"
+    back_path: "{{data_path}}/backup"
+    upgrade_flag: true
+  vars_files:
+  - images.yaml
+  - upgrade
+  roles:
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: kube-system
+      plugin_name: nvidia
+      check_type: ds
+      yaml_install:
+      - nvidia-device-plugin.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: cadvisor
+      plugin_name: cadvisor
+      check_type: ds
+      yaml_install:
+      - namespace.yaml
+      - cluserrole.yaml
+      - serviceaccount.yaml
+      - cluserrolebinding.yaml
+      - podsecuritypolicy.yaml
+      - daemonset.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: kube-system
+      plugin_name: metrics-server
+      check_type: deploy
+      yaml_install:
+      - auth-delegator.yaml
+      - auth-reader.yaml
+      - metrics-apiservice.yaml
+      - metrics-server-deployment.yaml
+      - metrics-server-service.yaml
+      - resource-reader.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      plugin_name: prometheus
+      namespace: kube-system
+      node_exclude: []
+      check_type: deploy
+      port:
+        node: "{{boots_global.PORT_NODE_EXPORT}}"
+        process: "{{boots_global.PORT_PROCESS_EXPORT}}"
+        prometheus: "{{(boots_global.PORT_K8S_SERVICE_NODE_MIN|int)+10}}"
+      yaml_update:
+      - prometheus-configmap.yaml
+      yaml_install: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: bdos-admin
+      plugin_name: scheduler
+      check_type: deploy
+      yaml_install:
+      - lvm-scheduler.yaml 
+      yaml_update: []

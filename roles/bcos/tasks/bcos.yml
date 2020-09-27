@@ -1,0 +1,10 @@
+- name: 生成yaml文件
+  template: src=bcos/{{item}} dest={{bcos_path}} mode=0644
+  with_items: "{{install_yaml}}"
+  
+- name: 安装bcos服务
+  shell: source /etc/profile; kubectl create -f {{bcos_path}}/{{item}} || true
+  with_items: "{{install_yaml}}"
+
+- name: 休息5s 等待一下
+  shell: sleep 5 || true

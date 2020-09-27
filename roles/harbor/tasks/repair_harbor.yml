@@ -1,0 +1,70 @@
+- name: 查询harbor 容器
+  shell: docker ps  -a | grep goharbor | awk '{print $1}' || true
+  register: harbor_all
+
+- name: 查询harbor 容器
+  shell: docker ps -f status=running | grep goharbor | awk '{print $1}' || true
+  register: harbor_run
+
+- name: 启动harbor (时间较长，请耐心等待...)
+  args:
+    chdir: "{{harbor_work_dir}}/harbor"
+  shell: ./install.sh --with-notary --with-clair --with-chartmuseum
+  when: harbor_all.stdout_lines | count ==0
+
+- name: 去掉harbor开机自启
+  lineinfile:
+    path: /usr/lib/systemd/system/docker.service
+    state: absent
+    regexp: '^ExecStartPost=/usr/bin/docker-compose.*chartmuseum'
+  when: harbor_all.stdout_lines | count ==0
+
+- name: 配置harbor开机自启
+  lineinfile:
+    path: /usr/lib/systemd/system/docker.service
+    regexp: "^ExecStartPost=/usr/bin/docker-compose"
+    insertbefore: "^ExecReload="
+    line: "ExecStartPost=/usr/bin/docker-compose -f {{harbor_work_dir}}/harbor/docker-compose.yml -f {{harbor_work_dir}}/harbor/docker-compose.notary.yml -f {{harbor_work_dir}}/harbor/docker-compose.clair.yml -f {{harbor_work_dir}}/harbor/docker-compose.chartmuseum.yml up -d"
+  when: harbor_all.stdout_lines | count ==0
+
+- name: 加载systemctl 启动
+  shell: systemctl daemon-reload
+  when: harbor_all.stdout_lines | count ==0
+
+- name: 启动没有起来的容器
+  shell: docker start {{item}}
+  when: item not in harbor_run.stdout_lines
+  with_items: "{{harbor_all.stdout_lines}}"
+
+- name: 等待harbor 启动
+  wait_for: timeout=60
+  when: harbor_all.stdout_lines|count == 0 or harbor_run.stdout_lines|count < harbor_all.stdout_lines|count
+
+- name: 获取harbor 的状态
+  shell: |
+    curl -k -u "admin:{{harbor_admin_password}}" -X GET -H "Content-Type: application/json" "https://127.0.0.1:{{https_ports}}/api/chartrepo/health"
+  register: healthy_status
+  ignore_errors: yes
+
+- name: 设置harbor 状态
+  set_fact: harbor_status={{healthy_status.stdout|from_json}}
+  when: not healthy_status.failed
+
+- name: 删除harbor 容器
+  shell: /usr/bin/docker-compose -f {{harbor_work_dir}}/harbor/docker-compose.yml -f {{harbor_work_dir}}/harbor/docker-compose.notary.yml -f {{harbor_work_dir}}/harbor/docker-compose.clair.yml -f {{harbor_work_dir}}/harbor/docker-compose.chartmuseum.yml down
+  when: healthy_status.failed or not harbor_status.healthy
+
+- name: 启动harbor 容器
+  shell: /usr/bin/docker-compose -f {{harbor_work_dir}}/harbor/docker-compose.yml -f {{harbor_work_dir}}/harbor/docker-compose.notary.yml -f {{harbor_work_dir}}/harbor/docker-compose.clair.yml -f {{harbor_work_dir}}/harbor/docker-compose.chartmuseum.yml up -d
+  when: healthy_status.failed or not harbor_status.healthy
+
+- name: 等待harbor 重启
+  wait_for: timeout=60
+  when: healthy_status.failed or not harbor_status.healthy
+
+- name: 查询harbor 的状态
+  shell: docker ps -a | grep goharbor || true
+  register: harbor_all
+
+- name: 打印harbor 状态
+  debug: msg={{harbor_all.stdout}}

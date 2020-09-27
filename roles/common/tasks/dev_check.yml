@@ -1,0 +1,15 @@
+# item_devName  设备名
+
+- name: 标识是否要查使用量
+  set_fact: dev_used_flag={{(item_devName in dev_used_list.stdout)|ternary('1','0')}}
+
+- name: 获取机器设备信息
+  script: obtain-dev.sh {{item_devName}} 0 {{dev_used_flag}}
+  register: tmp_dev_json
+
+- name: 格式化机器设备信息
+  set_fact: tmp_dev_info={{tmp_dev_json.stdout|from_json}}
+
+- name: 设置总设备变量
+  set_fact: dev_info={{[tmp_dev_info]|union(dev_info)}}
+  with_items: tmp_dev_info

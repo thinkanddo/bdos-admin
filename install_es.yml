@@ -1,0 +1,64 @@
+- hosts: es_master
+  tasks:
+  - name: 合并master主机信息
+    set_fact: memory={{boots_roles.es_master[inventory_hostname].memory}} hostname={{boots_roles.es_master[inventory_hostname].hostname}} devices={{(devices|default([]))|union(boots_roles.es_master[inventory_hostname].devs)}}
+
+- hosts: es_data
+  tasks:
+  - name: 合并master主机信息
+    set_fact: memory={{boots_roles.es_data[inventory_hostname].memory}} hostname={{boots_roles.es_data[inventory_hostname].hostname}} devices={{(devices|default([]))|union(boots_roles.es_data[inventory_hostname].devs)}}
+
+- hosts: es_master:es_data
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: "{{devices}}"
+  - role: es
+    vars:
+      role_step: install_es.yml
+      es_group: "blogic"
+      es_user: "blogic"
+      es_passwd: "blogic"
+      es_home_dir: "/home/blogic"
+      es_work_dir: "{{mount_path}}"
+      es_vg: "esvg"
+      es_lv: "eslv"
+      # es配置文件所需
+      es_cluster_name: "{{boots_global.COMPOSE_ES_CLUSTER_NAME}}"
+      es_node_name: "{{hostname}}"
+      es_data_dir: "{{es_work_dir}}/data"
+      es_log_dir: "{{es_work_dir}}/logs"
+      es_node_master: "{{(inventory_hostname in groups.es_master)|ternary('true','false')}}"
+      es_node_data: "{{(inventory_hostname in groups.es_data)|ternary('true','false')}}"
+      es_node_ingest: "false"
+      es_network_host: "{{inventory_hostname}}"
+      es_http_port: "{{boots_global.PORT_ES_HTTP}}"
+      es_tcp_port: "{{boots_global.PORT_ES_TCP}}"
+      es_heap_size: "2"
+      host_mem: "{{memory}}"
+      es_master_ip_list: "{{groups.es_master}}"
+    when: (inventory_hostname in boots_roles.es_master and boots_roles.es_master[inventory_hostname].roleStatus != "2") or (inventory_hostname in boots_roles.es_data and boots_roles.es_data[inventory_hostname].roleStatus != "2")
+
+- hosts: es_master
+  tasks:
+  - name: 保存es_master角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.es_master[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+- hosts: es_data
+  tasks:
+  - name: 保存es_data角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.es_data[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+- hosts: localhost
+  tasks:
+  - name: 保存es全局信息
+    vars:
+      ansible_global:
+        COMPOSE_ES_MASTER_IPS: "{{groups.es_master | join(',')}}"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"

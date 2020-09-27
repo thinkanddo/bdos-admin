@@ -1,0 +1,113 @@
+# 参数说明
+#  repo_name:  repo源文件列表
+#  host_var:  配置hosts文件需要用到的主机信息列表
+#  repo_enable: 是否配置repo源
+
+
+- name: 禁用默认repo源
+  shell: |
+    mkdir -p /etc/yum.repos.d/back_repo
+    mv -f /etc/yum.repos.d/*.repo /etc/yum.repos.d/back_repo || true
+  when: repo_enable
+
+- name: 配置repo
+  shell: |
+    echo '{{repo_files}}' > /etc/yum.repos.d/bcos.repo
+    yum clean all && yum makecache
+
+- name: 安装 expect libselinux-python
+  vars:
+    packages:
+    - lvm2
+    - python2-simplejson
+    - python-netaddr
+    - expect
+    - libselinux-python
+    - rsync
+    - pyOpenSSL-0.15.1-1.el7
+    - oniguruma
+    - jq
+  yum: name={{packages}} state=installed update_cache=yes
+
+- name: 给当前用户配置远程连接时的环境变量
+  lineinfile: name=~/.bashrc line="export PATH=$PATH:/usr/local/sbin:/usr/sbin:$HOME/.local/bin:$HOME/bin" regexp="export PATH=$PATH:/usr/local/sbin:/usr/sbin:$HOME/.local/bin:$HOME/bin"
+
+- name: 设置sudo免密
+  lineinfile: name=/etc/sudoers line="{{ansible_ssh_user}} ALL=(ALL) NOPASSWD:ALL" regexp="^{{ansible_ssh_user}}" backrefs=yes
+
+- name: 设置requiretty
+  lineinfile: name=/etc/sudoers line="#Defaults requiretty" regexp="^Defaults.*requiretty.*$" backrefs=yes
+
+- name: 关闭selinux
+  shell: setenforce 0 || true
+
+- name: 开机自动关闭selinux
+  lineinfile: name=/etc/sysconfig/selinux line="SELINUX=disabled" regexp="^SELINUX="
+
+- name: 配置启动网桥报文转发
+  lineinfile: path=/etc/sysctl.conf regexp=^{{item.key}} line={{item.key~' = '~item.value}}
+  with_dict:
+    kernel.pid_max: 4194303
+    net.ipv4.ip_forward: 1
+    net.core.somaxconn: 32768
+    net.bridge.bridge-nf-call-ip6tables: 1
+    net.bridge.bridge-nf-call-iptables: 1
+    net.bridge.bridge-nf-call-arptables: 1
+
+- name: 导入相关mod
+  shell: |
+    modprobe br_netfilter
+    modprobe bridge
+
+- name: 使sysctl配置生效
+  shell: sysctl -p
+
+- name: 关闭swap
+  shell: |
+    swapoff -a
+    sed -i 's/^[^#].*swap.*$/#&/g' /etc/fstab
+
+- name: 获取服务列表
+  service_facts:
+
+- name: 关闭防火墙
+  service: name={{item}} state=stopped enabled=no
+  when: (item in ansible_facts.services)
+  with_items:
+  - "firewalld.service"
+  - "iptables.service"
+
+- name: 设置/etc/hostname文件
+  shell: |
+    echo {{host_var.hostname}} > /etc/hostname
+    hostname {{host_var.hostname}}
+
+- name: 设置/etc/hosts文件
+  lineinfile: path=/etc/hosts regexp='^{{inventory_hostname}}\s+{{host_var.hostname}}' line='{{inventory_hostname}}  {{host_var.hostname}}'
+  delegate_to: localhost
+
+- name: 设置timeZone时区
+  shell: timedatectl set-timezone {{system_timezone}}
+  when: system_timezone != ""
+
+- name: 配置信号量
+  lineinfile: path=/etc/sysctl.conf regexp=^kernel.sem line='kernel.sem = 32000 1024000000 500 32000'
+
+- name: 使信号量生效
+  shell: sysctl -p
+
+- name: 发送ssh 公钥到安装节点上
+  authorized_key: 
+    user: "{{ansible_ssh_user}}"
+    key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+- name: 查询虚拟化网络
+  shell: "ip link show | grep -E 'br-|flannel|cali' | awk '{print $2}' | cut -d: -f1"
+  register: net_link
+
+- name: 清理虚拟化网络
+  shell: ip link delete {{item}} || true
+  with_items: "{{net_link.stdout_lines}}"
+
+- name: 创建挂载目录
+  file: path=/bcos_mnt state=directory

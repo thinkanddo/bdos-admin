@@ -1,0 +1,136 @@
+# 参数说明
+#  tag:  git 的tag标签号码
+
+- name: 清理打包目录
+  file: path={{admin.target}} state=absent
+
+## 制作admin 包信息
+- name: 更新admin代码
+  args:
+    chdir: "{{work_dir}}/{{admin.package}}"
+  shell: git pull
+
+- name: 设置admin当前的hash
+  args:
+    chdir: "{{work_dir}}/{{admin.package}}"
+  shell: git reflog | head -1 | awk '{ print $1}'
+  register: admin_hash
+
+- name: 回退admin版本tag
+  args:
+    chdir: "{{work_dir}}/{{admin.package}}"
+  shell: git reset --hard {{bcos_tag}}
+  when: bcos_tag != latest_tag
+
+- name: 获取需要更新的信息
+  include_vars: file={{work_dir}}/{{admin.package}}/version name=version
+
+- name: 设置harbor 变量
+  set_fact: harbor={{harbor | combine(harbor_info | default({}))}}
+
+## 制作repo
+- name: 制作repo rpm包
+  args:
+    chdir: "{{repo.path}}"
+  shell: rsync -ar --update --delete {{repo.package}} {{repo.target}}
+
+## 制作boots 包
+## 判断是否存在boots 版本包
+- name: 查询boots 文件
+  find: paths={{boots.repo}} patterns=boots.jar recurse=no
+  register: boots_jar
+
+- include: make_boots.yml
+  when: (bcos_tag == latest_tag) or (boots_jar.matched == 0)
+
+- name: 复制boots安装包
+  copy: src={{boots.repo}}/boots.jar dest={{boots.target}}
+
+## 制作镜像文件
+## 制作repo
+- name: 制作harbor安装包
+  shell: mkdir -p {{harbor.target}}; cd {{harbor.target}} ; cp {{harbor.path}}/harbor.tar .
+
+- name: 同步镜像包
+  include: rsync_image.yml
+
+- name: 同步harbor镜像包
+  args:
+    chdir: "{{harbor_work_dir}}/data"
+  shell: mkdir -p {{image.target}};rsync -ar --update --delete {{image.package}} {{image.target}}
+
+- name: 创建日志目录
+  file: path={{image.target}}/job_logs state=directory  owner=10000 group=10000
+
+## 制作devops
+- name: 同步devops home
+  shell: mkdir -p {{devops.target}};rsync -ar --update --delete {{devops.path}}/{{devops.package}} {{devops.target}}
+  when: bcos_tag != latest_tag
+
+## 制作repo
+- name: 制作es 包
+  args:
+    chdir: "{{es.path}}"
+  shell: rsync -ar --update --delete {{es.package}} {{es.target}}
+
+- name: 创建打包目录
+  file: path={{work_dir}}/{{package_dir}} state=directory
+
+- name: 获取镜像版本信息
+  args:
+    chdir: "{{work_dir}}/{{admin.package}}"
+  shell: "grep -rnw image: roles/bcos/templates/bcos | grep -w 'harbor.ip' | grep -v grep | cut -d: -f5,6 | cut -d/ -f2,3,4,5"
+  register: images
+
+- name: 获取bcos的db路径
+  args:
+    chdir: "{{work_dir}}/{{admin.package}}"
+  shell: ls {{bcos_db_dir}}
+  register: db_path
+
+- name: 合并增量db
+  args:
+    chdir: "{{work_dir}}/{{admin.package}}/{{bcos_db_dir}}/{{item}}"
+  shell:  cat {{item}}_*.sql >> {{item}}.sql  || true
+  with_items: "{{db_path.stdout_lines}}"
+  ignore_errors: yes
+
+- name: 写入版本号
+  lineinfile: dest={{work_dir}}/{{admin.package}}/version regexp='^bcos' line={{'bcos' ~ ':' ~ ' ' ~ bcos_tag}}
+
+- name: 制作版本包(时间较长，耐心等待...)
+  vars:
+    execute_path: "--exclude={{admin.execute|join(' --exclude=')}}"
+  args:
+    chdir: "{{work_dir}}"
+  shell:  tar -cf {{package_dir}}/{{package_name}} {{execute_path}} {{admin.package}}
+
+- name: 获取安装包大小
+  args:
+    chdir: "{{work_dir}}/{{package_dir}}"
+  shell:  du -sh {{package_name}} | awk '{print $1}'
+  register: package_size
+
+## 恢复安装包版本
+- name: 恢复admin 最新版本
+  args:
+    chdir: "{{work_dir}}/{{admin.package}}"
+  shell: git reset --hard {{admin_hash.stdout}}
+  when: bcos_tag != latest_tag
+
+- name: 安装包上传到ftp
+  args:
+    chdir: "{{work_dir}}/{{package_dir}}"
+  shell: |
+    ftp -n<<- EOF
+    open {{ftp.ip}} {{ftp.port}}
+    user {{ftp.username}} {{ftp.password}}
+    cd BCOS
+    mkdir V{{target_dir}}
+    cd V{{target_dir}}
+    mkdir 01-install-pack
+    cd 01-install-pack
+    put {{package_name}}
+    close
+    bye
+    EOF;

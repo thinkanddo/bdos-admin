@@ -1,0 +1,27 @@
+- name: 停止需要升级的服务
+  shell: source /etc/profile; kubectl delete -f {{bcos_yaml_path}}/bcos/{{item.key}}.yaml || true
+  when: item.key in images.bcos
+  with_dict: "{{upgrade.images}}"
+
+- name: 执行sql文件
+  include: upgrade_dbs.yml
+
+#镜像不变  只有yaml文件改变的情况支持不了
+- name: 备份需要升级的yaml文件
+  shell: mkdir -p {{data_path}}/backup ; cp -r {{bcos_yaml_path}} {{data_path}}/backup
+
+- name: 创建secret
+  shell: source /etc/profile; kubectl create secret -n bcos generic admin-conf --from-file=/etc/kubernetes/admin.conf || true
+
+- name: 创建yaml 目录
+  file: path={{bcos_yaml_path}}/bcos state=directory
+
+- name: 生成需要升级的目标yaml文件
+  template: src=bcos/{{item.key}}.yaml dest={{bcos_yaml_path}}/bcos/ mode=0644
+  when: item.key in images.bcos
+  with_dict: "{{upgrade.images}}"
+
+- name: 执行bcos服务
+  shell: source /etc/profile; kubectl create -f {{bcos_yaml_path}}/bcos/{{item.key}}.yaml || true
+  when: item.key in images.bcos
+  with_dict: "{{upgrade.images}}"

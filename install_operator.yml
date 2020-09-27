@@ -1,0 +1,71 @@
+---
+- hosts: operator
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: ["{{boots_roles.operator[inventory_hostname].devs}}"]
+  - role: bcos
+    vars:
+      role_step: lvm.yml
+
+- hosts: master[0]
+  sudo: yes
+  vars:
+    bcos_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/yaml/operator"
+  vars_files:
+  - images.yaml
+  pre_tasks:
+  - name: 查询租户
+    shell: source /etc/profile; kubectl get ns bdos-admin
+    ignore_errors: true
+    register: ns_result
+  roles:
+  - role: bcos
+    vars:
+      role_step: operator.yml
+      operator_yaml:
+      - es-operator.yaml
+      - ftp-operator.yaml
+      - kafka-operator.yaml
+      - lvm-operator.yaml
+      - memcached-operator.yaml
+      - mysql-operator.yaml
+      - prometheus-operator.yaml
+      - redis-operator.yaml
+      - storm-operator.yaml
+      - zk-operator.yaml
+    when: groups.operator|count>0 and ns_result.failed
+
+- hosts: master[0]
+  sudo: yes
+  vars:
+    data_path: "{{boots_global.SYSTEM_WORK_DIR}}/data"
+    yaml_path: "{{data_path}}/yaml"
+    back_path: "{{data_path}}/backup"
+  vars_files:
+  - images.yaml
+  pre_tasks:
+  - name: 查询租户
+    shell: source /etc/profile; kubectl get deploy -n kube-system lvm-scheduler
+    ignore_errors: true
+    register: lvm_result
+  roles:
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: bdos-admin
+      plugin_name: scheduler
+      check_type: deploy
+      yaml_install:
+      - lvm-scheduler.yaml 
+      yaml_update: []
+    when: lvm_result.failed
+
+- hosts: operator
+  tasks:
+  - name: 保存operator角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.operator[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"

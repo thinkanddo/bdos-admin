@@ -1,0 +1,15 @@
+---
+# 修改haproxy配置并重启   目前只支持单个端口的负载
+#  listen_port k8s 负载地址
+#  balance_port  负载流量端口
+#  admin_port   haproxy 统计界面端口 默认8099
+#  balance_group  需要做负载的主机分组，通过ansible 获取分组主机
+
+- name: 安装haproxy
+  yum: name=haproxy state=installed
+
+- name: 复制haproxy文件
+  template: dest=/etc/haproxy/ src=haproxy.cfg
+
+- name: 重启haproxy
+  service: name=haproxy state=restarted enabled=yes

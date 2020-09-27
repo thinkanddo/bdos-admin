@@ -1,0 +1,36 @@
+- name: 设置要修改的参数的变量
+  set_fact:
+    sys_conf:
+    - "/etc/security/limits.d/20-nproc.conf":
+      - "* soft nproc unlimited"
+      - "* hard nproc unlimited"
+    - "/etc/security/limits.conf":
+      - "* soft nofile 131072'"
+      - "* hard nofile 131072'"
+    - "/etc/sysctl.conf":
+      - "kernel.pid_max = 4194303"
+
+- name: 配置最大进程数限制（不限制）
+  lineinfile:
+    path: /etc/security/limits.d/20-nproc.conf
+    regexp: "^{{item}}.*$"
+    line: "{{item}}"
+    with_items: "{{sys_conf['/etc/security/limits.d/20-nproc.conf']}}"
+
+- name: 配置打开文件最大数量限制（可以适当调大）
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: "^{{item}}.*$"
+    line: "{{item}}"
+    with_items: "{{sys_conf['/etc/security/limits.conf']}}"
+
+- name: 配置最大线程数限制（可以适当调大）和信号量
+  lineinfile:
+    path: /etc/sysctl.conf
+    regexp: "^{{item}}.*$"
+    line: "{{item}}"
+    with_items:
+    - 'kernel.pid_max = 4194303'
+
+- name: 应用配置
+  shell: sysctl -p

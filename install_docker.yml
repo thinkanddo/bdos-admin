@@ -1,0 +1,27 @@
+---
+- hosts: docker
+  sudo: yes
+  roles:
+  - role: docker
+    vars:
+      role_step: clean_docker.yml
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: "{{boots_roles.docker[inventory_hostname].devs}}"
+  - role: docker
+    vars:
+      role_step: install_docker.yml
+      docker_vg:  dockervg
+      docker_lib: dockerlib
+  
+  - role: docker
+    vars:
+      role_step: make_gpu.yml
+
+- hosts: docker
+  tasks:
+  - name: 保存docker角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.docker[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"

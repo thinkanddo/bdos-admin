@@ -1,0 +1,178 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: storm-operator
+  labels:
+    app: storm-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storm-operator
+  template:
+    metadata:
+      labels:
+        app: storm-operator
+    spec:
+        serviceAccountName: storm-operator
+        containers:
+        - name: storm-operator
+          image: {{harbor.dns}}:{{harbor.port}}/{{images.operator.storm_operator}}
+          imagePullPolicy: Always
+          #env:
+          #- name: STORM_YAML_FILE
+          #  value: "/usr/local/default-storm.yaml"
+          ports:
+          - containerPort: 8080
+          volumeMounts:
+          - mountPath: /opt/operator-log
+            name: storm-operator-bdos-log
+        volumes:
+        - flexVolume:
+            driver: sysoperator.pl/lvm
+            fsType: ext4
+            options:
+              mountoptions: relatime,nobarrier
+              size: 10Gi
+              volumeID: storm-operator-bdos-log
+              volumegroup: operatorvg
+          name: storm-operator-bdos-log
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: storm-operator
+spec:
+  ports:
+  - name: storm-operator
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: storm-operator
+  type: NodePort
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: storm-operator
+
+---  
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: storm-operator
+rules:
+- apiGroups:
+  - storm.bonc.com
+  resources:
+  - stormclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: storm-operator
+subjects:
+- kind: ServiceAccount
+  name: storm-operator
+  namespace: {{operator_ns}}
+roleRef:
+  kind: ClusterRole
+  name: storm-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: storm-operator
+rules:
+- apiGroups:
+  - storm.bonc.com
+  resources:
+  - stormclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - "*"
+  resources:
+  - secrets
+  verbs:
+  - "*"
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: storm-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: storm-operator
+subjects:
+- kind: ServiceAccount
+  name: storm-operator
+  namespace: {{operator_ns}}

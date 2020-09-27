@@ -1,0 +1,7 @@
+- name: 查询rpm
+  shell: yum list {{rpm_name}} | grep {{rpm_name}}
+  register: yum_result
+
+- name: 判断结果
+  fail: msg={{rpm_name}}不存在
+  when: yum_result.stdout_lines|count==0

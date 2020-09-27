@@ -1,0 +1,29 @@
+---
+- hosts: localhost
+  sudo: yes
+  vars:
+    # 控制机主机相关变量
+    control_ip: "{{boots_global.SYSTEM_CONTROL_IP}}"
+    username: "{{boots_global.USERNAME}}"
+    work_dir: "{{boots_global.WORK_DIR}}"
+    work_dir_ansible: "{{boots_global.WORK_DIR_ANSIBLE}}"
+  roles:
+  - role: deploy
+    vars:
+      role_step: install_control.yml
+      bcos_path: "{{work_dir}}/data/sql"
+      # mysql 服务相关变量
+      mysql_flag: "{{boots_global.COMPOSE_MYSQL_INSTALL_FLAG|bool}}"
+      mysql_user: "{{boots_global.COMPOSE_MYSQL_USERNAME}}"
+      mysql_password: "{{boots_global.COMPOSE_MYSQL_PASSWORD}}"
+      mysql_ip: "{{boots_global.COMPOSE_MYSQL_IP}}"
+      mysql_port: "{{boots_global.PORT_MYSQL}}"
+      mysql_db_boots: "boots"
+      #tomcat 端口相关变量
+      boots_http_port: "{{boots_global.PORT_BOOTS_HTTP}}"
+      log_level: "{{boots_global.SYSTEM_LOG_LEVEL}}"
+  - role: deploy
+    vars:
+      role_step: install_ntpd.yml
+      ntp_server: "{{boots_global.SYSTEM_NTP_SERVER_IP}}"
+    when: control_ip == ntp_server

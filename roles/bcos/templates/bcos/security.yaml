@@ -1,0 +1,209 @@
+##################         Deployment         ##################
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: security
+  name: security
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: security
+  template:
+    metadata:
+      labels:
+        app: security
+        podevent: security
+      name: security
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "{{pinpoint.switch}}"
+        - name: PINPOINT_SERVER_IP
+          value: "{{pinpoint.server_ip}}"
+        - name: PINPOINT_TCP_PORT
+          value: "{{pinpoint.tcp_port}}"
+        - name: PINPOINT_STAT_PORT
+          value: "{{pinpoint.stat_port}}"
+        - name: PINPOINT_SPAN_PORT
+          value: "{{pinpoint.span_port}}"
+        - name: POD_TENANT_NAME
+          value: "{{namespace}}"
+        - name: POD_SERVICE_NAME
+          value: security
+        - name: JAVA_OPTS
+          value: -Xms1024M -Xmx10240M -XX:PermSize=512M -XX:MaxNewSize=1024M -XX:MaxPermSize=1024M -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.security}}
+        imagePullPolicy: Always
+        name: security
+#        livenessProbe:
+#          httpGet:
+#            path: /security/health
+#            port: 8080
+#            host: localhost
+#          periodSeconds: 10
+#          initialDelaySeconds: 120
+#          failureThreshold: 6
+        resources:
+          limits:
+            cpu: "8"
+            memory: 16Gi
+          requests:
+            cpu: "4"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /usr/local/tomcat/webapps/security/WEB-INF/classes/bonc-security.properties
+          name: cf-security-sec
+          subPath: bonc-security.properties
+        - mountPath: /usr/local/tomcat/webapps/security/WEB-INF/classes/cfg.db.deploy.properties
+          name: cf-security-cfg
+          subPath: cfg.db.deploy.properties
+      imagePullSecrets:
+      - name: harbor-secret
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: bonc-security.properties
+            path: bonc-security.properties
+          name: security-sec
+        name: cf-security-sec
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: cfg.db.deploy.properties
+            path: cfg.db.deploy.properties
+          name: security-cfg
+        name: cf-security-cfg
+
+---
+##################         Service         ##################
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: security
+    svcevent: security
+  name: security
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: security
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: security
+  type: ClusterIP
+---
+##################         ingress         ##################
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-redirect-from: '~*http://([a-z]*):([0-9]*)/(.*) '
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+  generation: 1
+  name: {{ingress_domain}}.security
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: security
+          servicePort: 8080
+        path: /security
+
+---
+##################         ConfigMap         ################## 
+apiVersion: v1
+data:
+  cfg.db.deploy.properties: |-
+    #for mysql
+    database.type=mysql
+    database.driver=com.bonc.jdbc.MysqlDriver
+    database.url=jdbc:bonc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.portal}}?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF8
+    database.username={{mysql.username}}
+    database.password={{mysql.password}}
+    database.initialPoolSize=3
+    database.acquireIncrement=3
+    database.minPoolSize=3
+    database.maxPoolSize=100
+    database.maxIdleTime=120
+    database.encryptType=0
+    
+    hibernate.dialect=org.hibernate.dialect.MySQL5Dialect
+    hibernate.show_sql=false
+    hibernate.hbm2ddl.auto=update
+    hibernate.jdbc.batch_size=20
+    hibernate.default_schema={{mysql.databases.portal}}
+kind: ConfigMap
+metadata:
+  name: security-cfg
+  namespace: {{namespace}}
+---  
+##################         ConfigMap         ##################
+
+apiVersion: v1
+data:
+  bonc-security.properties: |-
+    #web系统名称
+    web.name=APIStore
+    #口令强度(common-标准  high-高强度,默认是common)
+    password.strength=common
+    #加密类型
+    password.encrypt.type=b64_sha1
+    #忘记密码，邮件标题
+    mail.title=找回密码
+    #忘记密码，邮件内容
+    mail.content=亲爱的{0},您好：<br/><br/><br/>您在申请找回密码，重设密码地址：<br/><a href={1} target='_BLANK'>{1}</a> <br/><br/>如果上面的链接无法点击，您也可以复制链接，粘贴到您浏览器的地址栏内，然后按“回车”打开重置密码页面。本邮件超过24小时,链接将会失效，需要重新申请找回密码。<br/><br/>如果您没有进行过找回密码的操作，请不要点击上述链接。<br/><br/><br/><br/>谢谢!
+    #忘记密码，返回登录页
+    forgetPwd.loginPage=/cas/logout?service=/portal
+    forgetPwd.retrieveType=email
+    
+    #激活用户账号，邮件主题
+    activeMail.title=激活用户账号
+    #激活用户账号，邮件内容
+    activeMail.content=尊敬的{0},您好：<br/>&nbsp;&nbsp;&nbsp;&nbsp;请点击链接<a href\={1} target\='_BLANK'>{1}</a> 进行激活,如果您访问出现问题，请将该地址复制到浏览器的地址栏进行访问<br/>
+    #审批通过后，邮件主题
+    auditPass.title=审批通过
+    #审批通过后邮件内容
+    auditPass.content=尊敬的{0},<br/><br/><br/>您申请的资源审批通过!<br/>
+    
+    #审批未通过后，邮件主题
+    noAuditPass.title=未通过审批
+    #审批未通过后邮件内容
+    noAuditPass.content=尊敬的{0},<br/><br/><br/>您申请的资源未通过审批,如有疑问请联系管理员!<br/>
+    #发送短信注册用户
+    base.platform.sms= http://unijzyx.cop.local:8081/smsinterface/sms/headquarters/sendlist
+    #手机找回密码
+    phone.service=http://unijzyx.cop.local:8081/smsinterface/sms/headquarters/sendlist
+    #项目首页地址
+    home.service=/bconsole
+    
+    #会员证件照图片保存地址
+    userimage.upload.path=/upload
+    
+    #######################datasource config################################
+    #权限系统的数据源
+    #for mysql
+    database.type=mysql
+    database.original.driver=com.mysql.jdbc.Driver
+    database.original.url=jdbc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.portal}}
+    database.username={{mysql.username}}
+    database.password={{mysql.password}}
+    
+kind: ConfigMap
+metadata:
+  name: security-sec
+  namespace: {{namespace}}
+

@@ -1,0 +1,60 @@
+# 初始化第一个master节点
+- name: 重置kubelet
+  shell: kubeadm reset -f
+  
+- name: 复制 config.yaml 到 master节点opt
+  template: dest=/opt/ src=config.yaml
+
+- name: 启动kubelet服务
+  service: name=kubelet state=restarted enabled=yes
+
+- name: 初始化 master 此过程时间较长，请耐心等待...
+#  shell: kubeadm init --config /opt/config.yaml --ignore-preflight-errors=all
+  shell: kubeadm init --config /opt/config.yaml --ignore-preflight-errors=all --experimental-upload-certs
+  register: init_message
+
+- name: 获取join命令
+  set_fact: join_command={{init_message.stdout|regex_search('kubeadm join.*')}}
+
+- name: 获取join 命令的token
+  set_fact: join_token={{init_message.stdout|regex_search('[a-z0-9]{6}.[a-z0-9]{16}')}}
+
+- name: 获取授权命令
+  set_fact: grant_command={{init_message.stdout|regex_findall('(mkdir.*|sudo.*)')|join(';')}}
+
+- name: 添加环境变量
+  blockinfile: path=/etc/profile block="export KUBECONFIG=/etc/kubernetes/admin.conf" marker="#{mark} kubernetes env file"
+
+- name: 使环境变量生效
+  shell: source /etc/profile
+
+- name: 修改文件权限
+  file: path=/etc/kubernetes/admin.conf mode=644
+
+- name: 挂载localtime host
+  blockinfile:
+    path: "{{item}}"
+    insertafter: "^  volumes:"
+    marker: "  # localtime host volume"
+    block: "  - hostPath:\n      path: /etc/localtime\n    name: localtime"
+  with_items:
+  - "/etc/kubernetes/manifests/kube-apiserver.yaml"
+  - "/etc/kubernetes/manifests/kube-controller-manager.yaml"
+  - "/etc/kubernetes/manifests/kube-scheduler.yaml"
+
+- name: 挂载localtime container
+  blockinfile:
+    path: "{{item}}"
+    insertafter: "^    volumeMounts:"
+    marker: "    # localtime container volume"
+    block: "    - mountPath: /etc/localtime\n      name: localtime\n      readOnly: true"
+  with_items:
+  - "/etc/kubernetes/manifests/kube-apiserver.yaml"
+  - "/etc/kubernetes/manifests/kube-controller-manager.yaml"
+  - "/etc/kubernetes/manifests/kube-scheduler.yaml"
+
+- name: 等待apiserver服务正常启动
+  wait_for: port={{secure_port}}
+
+- name: 再等会儿30s
+  wait_for: timeout=10

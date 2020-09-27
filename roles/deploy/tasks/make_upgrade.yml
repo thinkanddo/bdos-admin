@@ -1,0 +1,194 @@
+#cur_tag 当前版本
+#target_tag  升级版本
+#tar_name 升级包名称
+
+- name: 设置harbor 变量
+  set_fact: harbor={{harbor_info | default({}) | combine(harbor)}}
+
+- name: 清理安装包目录
+  file: path={{admin.target}} state=absent
+
+- name: 更新最新代码
+  args:
+    chdir: "{{admin.package}}"
+  shell: git pull
+
+- name: 记录当前版本hash
+  args:
+    chdir: "{{admin.package}}"
+  shell: git log --pretty=oneline | head -1 | awk '{print $1}'
+  register: admin_hash
+
+- name: 创建安装包目录
+  file: path={{admin.target}}/{{work_name}} state=directory force=true
+
+- name: 切换到需要更新到的代码分支
+  args:
+    chdir: "{{admin.package}}"
+  shell: git reset --hard {{target_tag}}
+  when: target_tag != ''
+
+- name: 比对各个组件的version 是否变更
+  args:
+    chdir: "{{admin.package}}"
+  shell: git diff {{cur_tag}}:version {{target_tag}}:version | grep '^+' | grep -v '+++' | sed 's/^.//'
+  register: version_diff
+
+- name: 组装变更的images
+  args:
+    chdir: "{{admin.package}}"
+  shell: error=$(git diff {{cur_tag}}:images.yaml {{target_tag}}:images.yaml) && git diff {{cur_tag}}:images.yaml {{target_tag}}:images.yaml | grep '^+' | grep -v '^+++' | sed 's/^.//' | grep library
+  register: diff_images
+  ignore_errors: true
+
+- name: 获取初始镜像
+  include_vars: file={{admin.package}}/images.yaml
+
+- name: 同步文件
+  vars:
+    execute_path: "--exclude={{admin.execute|join(' --exclude=')}}"
+  args:
+    chdir: "{{work_dir}}"
+  shell: rsync -ar {{execute_path}} {{work_name}} {{package_dir}}
+
+- name: 同步devops 增量包
+  shell: mkdir -p {{devops.target}};rsync -ar --update --delete {{devops.path}}/{{devops.package}} {{devops.target}}
+  when: sys_target_tag != latest_tag
+  register: devops_result
+
+- name: 组装变更的db
+  args:
+    chdir: "{{admin.package}}"
+  shell: git diff {{cur_tag}} {{target_tag}} --name-status | grep '^A' | grep roles/bcos/templates/db | awk '{ print $2}'
+  register: diff_sql
+
+- name: 初始化控制组件变量
+  set_fact: bconsole={{[]}} bdos={{[]}} blogic={{[]}} bpm={{[]}} portal={{[]}} operator={{[]}} operator_image={{[]}} update_sql={{ ((diff_sql.stdout=='') | ternary([],(diff_sql.stdout | replace( 'roles','- roles' ) | from_yaml))) }}
+
+- name: 提取operator 升级内如
+  vars:
+    image_tag: "{{item.value.split(':v')}}"
+  set_fact: operator={{operator|union([item.key.replace('_','-')])}} operator_image={{operator_image|union([ item.value ])}}
+  when: image_tag[1] > cur_tag
+  with_dict: "{{images.operator}}"
+
+- name: 组装db 清单
+  vars:
+    bconsole_prefix: roles/bcos/templates/db/bconsole/
+    bdos_prefix: roles/bcos/templates/db/bdos/
+    blogic_prefix: roles/bcos/templates/db/blogic/
+    bpm_prefix: roles/bcos/templates/db/bpm/
+    portal_prefix: roles/bcos/templates/db/portal/
+  set_fact:
+    bconsole: "{{bconsole | union( (bconsole_prefix in item)|ternary([item|replace(bconsole_prefix,'')] , []))}}"
+    bdos: "{{bdos | union( (bdos_prefix in item)|ternary([item|replace(bdos_prefix,'')] , []))}}"
+    blogic: "{{blogic | union( (blogic_prefix in item)|ternary([item|replace(blogic_prefix,'')] , []))}}"
+    bpm: "{{bpm | union( (bpm_prefix in item)|ternary([item|replace(bpm_prefix,'')] , []))}}"
+    portal: "{{portal | union( (portal_prefix in item)|ternary([item|replace(portal_prefix,'')] , []))}}"
+  with_items: "{{update_sql}}"
+
+- name: 设置升级清单
+  set_fact:
+    upgrade:
+      harbor: "{{harbor.dns}}:{{harbor.port}}/"
+      devops: "{{sys_target_tag != latest_tag and devops_result.rc == 0}}"
+      version: "{{version_diff.stdout|from_yaml}}"
+      images: "{{diff_images.failed|ternary(images.k8s | combine(images.bcos) , diff_images.stdout|from_yaml)}}"
+      operator: "{{operator}}"
+      db:
+        bconsole: "{{bconsole}}"
+        bdos: "{{bdos}}"
+        blogic: "{{blogic}}"
+        bpm: "{{bpm}}"
+        portal: "{{portal}}"
+
+- name: 组装升级清单
+  vars:
+    update_invent:
+      upgrade: "{{upgrade}}"
+  shell: echo '{{update_invent|to_nice_yaml}}' > {{admin.target}}/{{work_name}}/upgrade
+
+- name: 拷贝新增db文件
+  args:
+    chdir: "{{admin.package}}"
+  vars:
+    target: "{{admin.target}}/{{work_name}}/{{item | dirname}}"
+  shell: mkdir -p {{target}}; cp  {{item}} {{target}}
+  with_items: "{{update_sql}}"
+
+- name: 追加boots db
+  args:
+    chdir: "{{admin.package}}"
+  shell: git diff {{cur_tag}}:roles/deploy/templates/boots.sql {{target_tag}}:roles/deploy/templates/boots.sql | grep '^+' | grep -v '^+++' | sed 's/^.//'  >> {{admin.target}}/{{work_name}}/roles/deploy/templates/boots_cfg.sql
+
+- name: 恢复 安装包版本
+  args:
+    chdir: "{{admin.package}}"
+  shell: git reset --hard {{admin_hash.stdout}}
+  when: target_tag != ''
+
+- name: 拷贝boots 包
+  shell: cp -r {{work_dir}}/bcos-tools/boots/{{upgrade.version.boots}}/boots.jar {{admin.target}}/{{work_name}}/roles/deploy/files
+  when: ('boots' in upgrade.version)
+
+- name: 拷贝repo 包
+  shell: cp -r {{work_dir}}/bcos-tools/repo/{{upgrade.version.repo}}/pub {{admin.target}}/{{work_name}}
+  when: ('repo' in upgrade.version)
+
+- name: 拷贝es 包
+  shell: cp -r  {{work_dir}}/bcos-tools/es/{{upgrade.version.es}}/* {{admin.target}}/{{work_name}}/roles/es/files
+  when: ('es' in upgrade.version)
+
+- name: 拷贝harbor 包
+  shell: cp -r {{work_dir}}/bcos-tools/harbor/{{upgrade.version.es}}/harbor {{admin.target}}/{{work_name}}/roles/harbor/files
+  when: ('harbor' in upgrade.version)
+
+- name: 初始镜像清单
+  set_fact: image_invent={{[]}}
+
+- name: 设置镜像
+  set_fact: image_invent={{image_invent|union([item.value])}}
+  with_dict: "{{upgrade.images}}"
+
+- name: 设置operator镜像
+  set_fact: image_invent={{image_invent|union([item])}}
+  with_items: "{{operator_image}}"
+
+- name: 更新镜像
+  shell: docker pull {{harbor.dns}}:{{harbor.port}}/{{item}}
+  with_items: "{{image_invent}}"
+
+- name: 打镜像包
+  vars:
+    harbor_ep: "{{harbor.dns}}:{{harbor.port}}/"
+  shell: docker save {{harbor.dns}}:{{harbor.port}}/{{image_invent|join(' '~harbor.dns~':'~harbor.port~'/')}} -o {{admin.target}}/{{work_name}}/update_image.tar
+  when: image_invent | count > 0
+
+- name: 制作版本包(时间较长，耐心等待...)
+  args:
+    chdir: "{{admin.target}}"
+  shell:  tar -cvf {{package_name}}  {{work_name}}
+
+- name: 获取安装包大小
+  args:
+    chdir: "{{admin.target}}"
+  shell:  du -sh {{package_name}} | awk '{print $1}'
+  register: package_size
+
+- name: 安装包上传到ftp
+  args:
+    chdir: "{{admin.target}}"
+  shell: |
+    ftp -n<<- EOF
+    open {{ftp.ip}} {{ftp.port}}
+    user {{ftp.username}} {{ftp.password}}
+    cd BCOS
+    mkdir V{{target_dir}}
+    cd V{{target_dir}}
+    mkdir 02-upgrade-pack
+    cd 02-upgrade-pack
+    put {{package_name}}
+    close
+    bye
+    EOF;
+  

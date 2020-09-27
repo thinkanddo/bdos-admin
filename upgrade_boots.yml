@@ -1,0 +1,31 @@
+- hosts: localhost
+  sudo: yes
+  vars:
+    # 控制机主机相关变量
+    control_ip: "{{boots_global.SYSTEM_CONTROL_IP}}"
+    username: "{{boots_global.SYSTEM_USERNAME}}"
+    work_dir: "{{boots_global.SYSTEM_WORK_DIR}}"
+    work_dir_ansible: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}"
+  pre_tasks:
+  - name: 合并repo
+    synchronize: src=pub dest=/var/ftp group=no owner=no rsync_opts=--update
+  - name: 刷新repo 源
+    args:
+      chdir: /var/ftp/pub
+    shell: createrepo . && yum clean all && yum makecache
+  roles:
+  - role: deploy
+    vars:
+      role_step: upgrade_boots.yml
+      bcos_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/sql"
+      back_path: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/backup"
+      # mysql 服务相关变量
+      mysql_flag: "{{boots_global.COMPOSE_MYSQL_INSTALL_FLAG|bool}}"
+      mysql_user: "{{boots_global.COMPOSE_MYSQL_USERNAME}}"
+      mysql_password: "{{boots_global.COMPOSE_MYSQL_PASSWORD}}"
+      mysql_ip: "{{boots_global.COMPOSE_MYSQL_IP}}"
+      mysql_port: "{{boots_global.PORT_MYSQL}}"
+      mysql_db_boots: "boots"
+      #tomcat 端口相关变量
+      boots_http_port: "{{boots_global.PORT_BOOTS_HTTP}}"
+      log_level: "{{boots_global.SYSTEM_LOG_LEVEL}}"

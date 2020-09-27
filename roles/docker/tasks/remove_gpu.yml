@@ -1,0 +1,21 @@
+- name: 获取docker配置
+  shell: cat /etc/docker/daemon.json
+  register: daemon
+
+- name: 设置old_docker
+  set_fact: old_docker={{daemon.stdout | from_json}}
+
+- name: 设置是否已经不支持GPU
+  set_fact: gpu_support={{'default-runtime' in old_docker}} rm_docker={{old_docker.pop('default-runtime')}}
+
+- name: 更新docker配置文件（daemon.json）
+  shell: echo '{{old_docker|to_nice_json}}' > /etc/docker/daemon.json
+  when: gpu_support
+
+- name: 停止docker服务
+  service: name=docker state=stopped
+  when: gpu_support
+
+- name: 启动docker服务，使配置生效
+  service: name=docker state=started
+  when: gpu_support

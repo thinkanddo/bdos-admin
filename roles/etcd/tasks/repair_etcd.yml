@@ -1,0 +1,53 @@
+#  启动etcd参数
+#  registry_url   仓库地址
+#  etcd_image_version  etcd 镜像版本
+#  etcd_peer_port: etcd peer port default: 2380
+#  etcd_client_port: etcd client port
+#  etcd_cluster_state:  etcd集群状态，新建集群是new 拓展节点是existing
+#  etcd_mount_path：  etcd挂载地址
+
+- name: 设置访问地址
+  set_fact:
+    etcd_peer_url: "http://{{inventory_hostname}}:{{etcd_peer_port}}"
+    etcd_client_url: "http://{{inventory_hostname}}:{{etcd_client_port}}"
+    etcd_name: "etcd-node-{{inventory_hostname|replace('.','-')}}"
+    etcd_name_url: "etcd-node-{{inventory_hostname | replace('.','-')}}=http://{{inventory_hostname}}:{{etcd_peer_port}}"
+
+- name: 获取etcd容器
+  shell: docker ps -aqf name=etcd
+  register: etcd_all
+
+- name: 查看etcd是否存在
+  shell: docker ps -f name=etcd
+  register: etcd_run
+
+- name: 安装etcd
+  shell: "docker run --net=host --restart=always --name etcd -v {{etcd_mount_path}}:/data.etcd
+    --detach {{harbor.dns}}:{{harbor.port}}/{{images.k8s.etcd}} /usr/local/bin/etcd
+    --data-dir=data.etcd --name {{etcd_name}}
+    --initial-advertise-peer-urls {{etcd_peer_url}}
+    --listen-peer-urls {{etcd_peer_url}}
+    --advertise-client-urls {{etcd_client_url}}
+    --listen-client-urls {{etcd_client_url}}
+    --initial-cluster {{etcd_linked | replace(etcd_client_port,etcd_peer_port)}}
+    --heartbeat-interval 1000
+    --election-timeout 5000
+    --initial-cluster-state {{etcd_cluster_state}}
+    --initial-cluster-token my-etcd-token"
+  when: etcd_all.stdout_lines | count == 0
+
+- name: 启动死掉的etcd
+  shell: docker start etcd
+  when: etcd_all.stdout_lines | count > 0 and etcd_run.stdout_lines | count == 0
+
+- name: 等待启动同步
+  wait_for: timeout=20
+  when: etcd_run.stdout_lines | count == 0
+
+- name: 查看etcd是否存在
+  uri: url={{etcd_client_url}}/health method=GET return_content=yes
+  register: check
+  ignore_errors: yes
+
+- name: 打印检测结果
+  debug: msg={{check}}

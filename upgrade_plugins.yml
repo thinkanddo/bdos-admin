@@ -1,0 +1,31 @@
+---
+## 生成k8s 相关插件
+- hosts: prometheus
+  sudo: yes
+  roles:
+    - role: common
+      vars:
+        role_step: alloc_part.yml
+        alloc_dev: "{{boots_roles.prometheus[inventory_hostname].devs}}"
+
+- hosts: master[0]
+  sudo: yes
+  vars:
+    plugins_dest: "{{boots_global.SYSTEM_WORK_DIR}}/data/plugins"
+    plugins_src: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/roles/plugin/templates"
+  vars_files:
+  - images.yaml
+  roles:
+  - role: plugin
+    vars:
+      role_step: generate.yml
+      pod_subnet: "{{boots_global.COMPOSE_K8S_POD_SUBNET}}"
+      extra_hosts_path: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/hosts"
+      node_name: "{{boots_roles.prometheus[groups.prometheus[0]].hostname}}"
+      ingress_host: "{{groups.default | difference ( groups.master )}}"
+      host_path: "{{hostvars[groups.prometheus[0]].mount_path}}"
+      root_domain: "{{boots_global.SYSTEM_ROOT_DOMAIN}}"
+      port:
+        node: "{{boots_global.PORT_NODE_EXPORT}}"
+        process: "{{boots_global.PORT_PROCESS_EXPORT}}"
+        prometheus: "{{(boots_global.PORT_K8S_SERVICE_NODE_MIN|int)+10}}"

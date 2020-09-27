@@ -1,0 +1,26 @@
+- name: 安装ntp应用
+  vars:
+    packages:
+    - ntp
+    - ntpdate
+  yum: name={{packages}} state=installed
+
+- name: 注释ntp 配置
+  args:
+    warn: false
+  shell: sed -i 's/^server/#server/' /etc/ntp.conf
+
+- name: 配置ntp
+  lineinfile: path=/etc/ntp.conf insertafter=EOF line="server {{ntp_server}}"
+
+- name: 启动ntp服务
+  service: name=ntpd state=stopped
+
+- name: 同步时间
+  shell: ntpdate {{ntp_server}}
+
+- name: 启动ntp服务
+  service: name=ntpd state=started enabled=yes
+
+- name: 允许ntp 修改系统硬件时间
+  shell: timedatectl set-ntp yes

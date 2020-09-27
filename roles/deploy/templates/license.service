@@ -1,0 +1,13 @@
+[Unit]
+Description=boots
+
+[Service]
+#Type=forking
+PIDFile={{pack_path}}/boots.pid
+ExecStart=/usr/bin/nohup java -jar {{pack_path}}/license.jar --work-dir-ansible={{work_dir_ansible}} --server.port=8080 --logging.level.root={{log_level}} --logging.path={{pack_path}}/logs --spring.datasource.type=com.zaxxer.hikari.HikariDataSource --spring.datasource.username={{mysql_user}} --spring.datasource.password={{mysql_password}} --spring.datasource.url=jdbc:mysql://{{mysql_ip}}:{{mysql_port}}/{{mysql_db_boots}}?useUnicode=true&characterEncoding=UTF-8&useSSL=true &
+ExecReload=
+ExecStop=/usr/bin/kill -9 `ps -ef | grep {{pack_path}} | grep -wv grep| awk '{print $2}'`
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

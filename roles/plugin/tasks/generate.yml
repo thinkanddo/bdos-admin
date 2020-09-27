@@ -1,0 +1,17 @@
+- include: targets.yml  plugin_name=prometheus
+
+- name: 清空插件目录
+  file: path={{plugins_dest}} state=absent
+
+- name: 获取插件 yaml列表
+  find: paths={{plugins_src}} patterns=*.yaml recurse=yes
+  register: plugins
+  delegate_to: localhost
+
+- name: 创建插件目录
+  file: path={{plugins_dest}}/{{item | dirname | basename}} state=directory
+  with_items: "{{plugins.files|map(attribute='path')|list}}"
+
+- name: 生成yaml 文件
+  template: src={{item | dirname | basename}}/{{item | basename}} dest={{plugins_dest}}/{{item | dirname | basename}} mode=0644
+  with_items: "{{plugins.files|map(attribute='path')|list}}"

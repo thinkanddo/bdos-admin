@@ -1,0 +1,45 @@
+---
+- hosts: localhost
+  sudo: yes
+  vars:
+    work_dir: "{{boots_global.SYSTEM_WORK_DIR}}"
+    package_name: "bcos-admin-{{boots_global.SYSTEM_CUR_VERSION}}-{{boots_global.SYSTEM_TARGET_VERSION}}.tar"
+    package_dir: "package"
+    bcos_path: "{{boots_global.SYSTEM_WORK_DIR}}/data"
+    ftp:
+      ip: "{{boots_global.COMPOSE_FTP_IP}}"
+      port: "{{boots_global.PORT_FTP_CONTROL}}"
+      username: "{{boots_global.COMPOSE_FTP_USERNAME}}"
+      password: "{{boots_global.COMPOSE_FTP_PASSWORD}}"
+    admin:
+      path: "{{work_dir}}"
+      target: "{{work_dir}}/{{package_dir}}"
+      package: bcos-admin
+    image_file: update_image.tar
+  roles:
+  - role: deploy
+    vars:
+      role_step: upgrade_pack.yml
+
+- hosts: harbor[0]
+  sudo: yes
+  pre_tasks:
+  - name: 引入镜像清单
+    include_vars: file=images.yaml
+  - name: 引入升级清单
+    include_vars: file=upgrade
+  roles:
+  - role: harbor
+    vars:
+      role_step: load_image.yml
+      image_info:
+        file: update_image.tar
+        src: "{{boots_global.SYSTEM_WORK_DIR}}/package/bcos-admin"
+        dest: "{{boots_global.COMPOSE_HARBOR_WORK_DIR}}/harbor"
+      harbor:
+        dns: "{{(boots_global.COMPOSE_HARBOR_DNS=='')|ternary(boots_global.COMPOSE_HARBOR_IP,boots_global.COMPOSE_HARBOR_DNS)}}"
+        ip: "{{boots_global.COMPOSE_HARBOR_IP}}"
+        port: "{{boots_global.PORT_HARBOR_HTTPS}}"
+        username: "admin"
+        password: "{{boots_global.COMPOSE_HARBOR_ADMIN_PASSWORD}}"
+    when: hostvars.localhost.image_stat.stat.exists

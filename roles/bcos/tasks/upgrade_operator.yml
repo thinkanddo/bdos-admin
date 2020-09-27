@@ -1,0 +1,9 @@
+- name: 分发operator文件
+  template: src=operator/{{item}}.yaml dest={{yaml_path}}/operator mode=0644
+  with_items: "{{upgrade.operator}}"
+
+- name: 替换yaml
+  args:
+    chdir: "{{yaml_path}}/operator"
+  shell: source /etc/profile; kubectl replace -n bdos-admin -f {{item}}.yaml
+  with_items: "{{upgrade.operator}}"

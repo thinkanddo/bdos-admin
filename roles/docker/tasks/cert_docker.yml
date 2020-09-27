@@ -1,0 +1,17 @@
+- name: 创建docker 证书目录
+  file: path={{cert_dir}}/ state=directory force=true
+
+- name: 配置docker信任自签名证书
+  copy: src={{cert_src}} dest={{cert_dir}}/ca.crt
+
+- name: 配置harbor dns 静态映射
+  lineinfile: path=/etc/hosts regexp="^.*{{harbor.dns}}.*$" line="{{harbor.ip}} {{harbor.dns}}"
+  when: (harbor.dns != "" and harbor.dns != harbor.ip)
+
+#- name: 登录harbor
+#  shell: docker login --username admin --password Harbor12345 {{harbor.dns~":"~harbor.port}}
+
+- name: 本地提前导入部分公共镜像
+  shell: docker pull {{harbor.dns~":"~harbor.port~"/"~item}}
+  with_items: "{{base_images}}"
+  when: (harbor.dns != "")

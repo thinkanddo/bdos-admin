@@ -1,0 +1,7 @@
+repo: 2.0.0
+es: 5.5.3
+harbor: 1.6.1
+docker: 18.09.3
+k8s: 1.14.3
+ceph: 10.2.9
+boots: 1.0.4

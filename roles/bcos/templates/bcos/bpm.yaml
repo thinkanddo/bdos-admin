@@ -1,0 +1,152 @@
+##################         Deployment         ##################
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: bpm
+  name: bpm
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: bpm
+  template:
+    metadata:
+      labels:
+        app: bpm
+        podevent: bpm
+      name: bpm
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "{{pinpoint.switch}}"
+        - name: PINPOINT_SERVER_IP
+          value: "{{pinpoint.server_ip}}"
+        - name: PINPOINT_TCP_PORT
+          value: "{{pinpoint.tcp_port}}"
+        - name: PINPOINT_STAT_PORT
+          value: "{{pinpoint.stat_port}}"
+        - name: PINPOINT_SPAN_PORT
+          value: "{{pinpoint.span_port}}"
+        - name: POD_TENANT_NAME
+          value: "{{namespace}}"
+        - name: POD_SERVICE_NAME
+          value: bpm
+        - name: JAVA_OPTS
+          value: -Xms1024M -Xmx3072M -XX:PermSize=512M -XX:MaxNewSize=1024M -XX:MaxPermSize=1024M -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.bpm}}
+        imagePullPolicy: Always
+        name: bpm
+#        livenessProbe:
+#          httpGet:
+#            path: /bpm/health
+#            port: 8080
+#            host: localhost
+#          periodSeconds: 10
+#          initialDelaySeconds: 120
+#          failureThreshold: 6
+        resources:
+          limits:
+            cpu: "3"
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 2Gi
+        volumeMounts:
+        - mountPath: /usr/local/tomcat/webapps/bpm/WEB-INF/classes/cfg.db.deploy.properties
+          name: cf-bpm-cfg
+          subPath: cfg.db.deploy.properties
+      imagePullSecrets:
+      - name: harbor-secret
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: cfg.db.deploy.properties
+            path: cfg.db.deploy.properties
+          name: bpm-cfg
+        name: cf-bpm-cfg
+---
+##################         Service         ##################
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bpm
+    svcevent: bpm
+  name: bpm
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: http1
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: bpm
+  type: ClusterIP
+--- 
+##################         ingress         ##################
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-redirect-from: ~*http://([a-z]*):([0-9]*)/(.*)
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+  name: {{ingress_domain}}.bpm
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: bpm
+          servicePort: 8080
+        path: /bpm
+---       
+##################         ConfigMap         ##################
+
+apiVersion: v1
+data:
+  cfg.db.deploy.properties: |+
+
+    database.encryptType=0
+    database.type=mysql
+    database.driver=com.mysql.jdbc.Driver
+    database.url=jdbc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.bpm}}?characterEncoding=utf-8&autoReconnect=true
+    database.username={{mysql.username}}
+    database.password={{mysql.password}}
+    
+    
+    security_database.driver=com.mysql.jdbc.Driver
+    security_database.url=jdbc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.portal}}?characterEncoding=utf-8&autoReconnect=true
+    security_database.username={{mysql.username}}
+    security_database.password={{mysql.password}}
+    
+    
+    database.acquireIncrement=3
+    database.initialPoolSize=3
+    database.minPoolSize=3
+    database.maxPoolSize=100
+    database.maxIdleTime=120
+    #deploy workflow to portal-menu
+    integration.portal.menu=true
+    
+    #hibernate.dialect=org.hibernate.dialect.Oracle10gDialect
+    hibernate.dialect=org.hibernate.dialect.MySQL5Dialect
+    hibernate.hbm2ddl.auto=update
+    hibernate.show_sql=false
+    hibernate.default_schema=bpm
+    hibernate.jdbc.batch_size=20
+
+kind: ConfigMap
+metadata:
+  name: bpm-cfg
+  namespace: {{namespace}}

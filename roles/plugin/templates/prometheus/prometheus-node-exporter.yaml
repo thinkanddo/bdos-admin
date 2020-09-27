@@ -1,0 +1,36 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: kube-system
+  labels:
+    app: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+      annotations:
+        prometheus.io/port: '{{port.node}}'
+        prometheus.io/linux_node: "true"
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: node-exporter-bcm
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.k8s.prometheus_node_exporter}}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: {{port.node}}
+          hostPort: {{port.node}}
+        command:
+        - "/bin/node_exporter"
+        args:
+        - '--web.listen-address=:{{port.node}}'

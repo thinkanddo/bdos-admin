@@ -1,0 +1,35 @@
+- name: kubeadm清理k8s相关资源
+  shell: kubeadm reset -f
+  ignore_errors: yes
+
+- name: 删除.kube目录
+  shell: rm -rf /root/.kube /home/{{ansible_ssh_user}}/.kube
+
+- name: 停止 kubelet 服务
+  service: name=kubelet state=stopped enabled=no
+  ignore_errors: yes
+
+- name: 停止 keepalived 服务
+  service: name=keepalived state=stopped enabled=no
+  ignore_errors: yes
+
+- name: 停止 haproxy 服务
+  service: name=haproxy state=stopped enabled=no
+  ignore_errors: yes
+
+- name: 卸载kubernetes应用
+  vars:
+    packages:
+    - kubernetes-cni
+    - kubectl
+    - kubeadm
+    - kubelet
+    - keepalived
+    - haproxy
+  yum: name={{packages}} state=absent
+
+- name: 清理残留资源
+  shell: |
+    cat /proc/mounts | awk '{print $2}' | grep '/var/lib/kubelet' | xargs -r umount
+    rm -rf /etc/kubernetes/pki/* /var/lib/kubelet/pki/* /var/run/calico /opt/cni/bin /etc/cni/net.d
+    

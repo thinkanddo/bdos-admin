@@ -1,0 +1,33 @@
+- name: 设置租户编码
+  set_fact: operator_ns=bdos-admin
+
+- name: 创建租户
+  shell: source /etc/profile; kubectl create ns {{operator_ns}}
+
+- name: 创建yaml目录
+  file: path={{bcos_path}} state=directory
+
+- name: 分发operator文件
+  template: src=operator/{{item}} dest={{bcos_path}} mode=0644
+  with_items: "{{operator_yaml}}"
+
+- name: 启动operator
+  shell: source /etc/profile; kubectl create -n {{operator_ns}} -f {{bcos_path}}/{{item}}
+  with_items: "{{operator_yaml}}"
+
+#- name: 等待operator启动完毕
+#  shell: |
+#    i=1
+#    while true
+#    do
+#      a=$(source /etc/profile; kubectl get po -n {{namespace}} | grep operator | awk '{print $3}' | grep -v Running | wc -l)
+#      if [[ $a -eq 0 ]];then
+#        break
+#      fi
+#      if [[ $i -eq 100 ]];then
+#        exit 1
+#      fi
+#      i=$[ $i + 1 ]
+#      sleep 6
+#    done
+

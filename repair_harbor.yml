@@ -1,0 +1,17 @@
+---
+- hosts: harbor
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: harbor
+    vars:
+      role_step: repair_harbor.yml
+      harbor_dns: "{{(boots_global.COMPOSE_HARBOR_DNS=='') | ternary( inventory_hostname ,boots_global.COMPOSE_HARBOR_DNS) }}"
+      http_ports: "{{boots_global.PORT_HARBOR_HTTP}}"
+      https_ports: "{{boots_global.PORT_HARBOR_HTTPS}}"
+      notary_ports: "{{boots_global.PORT_HARBOR_NOTARY}}"
+      log_ports: "{{boots_global.PORT_HARBOR_LOG}}"
+      harbor_admin_password: "{{boots_global.COMPOSE_HARBOR_ADMIN_PASSWORD}}"
+      file_system: xfs
+      harbor_work_dir: "/bcos_mnt/harbor_data"

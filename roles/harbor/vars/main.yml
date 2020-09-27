@@ -1,0 +1,1 @@
+harbor_path: "{{boots_global.COMPOSE_HARBOR_WORK_DIR}}"

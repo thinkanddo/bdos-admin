@@ -1,0 +1,27 @@
+- name: 获取dockerv_vg 的 pv
+  shell: pvs | grep {{docker_vg}} | awk '{print $1}'
+  register: pvs
+
+- name: 删除无效的thinpool
+  shell: lsblk -bln /dev/mapper/{{docker_vg}}-thinpool | grep -vw {{docker_vg}}-thinpool  | awk '{ print $1}' | sort | uniq | while read th;do dmsetup remove $th;done || true
+
+- name: 删除残留的thinpool
+  shell: dmsetup ls | grep docker- | awk '{print $1}' | sort | uniq | while read th;do dmsetup remove $th;done || true
+
+- name: 清理docker thinpool
+  lvol: vg={{docker_vg}}  lv=thinpool  state=absent force=yes
+
+- name: 清理docker thinpoolmeta
+  lvol: vg={{docker_vg}}  lv=thinpoolmeta  state=absent force=yes
+
+- name: 清理vg
+  lvg: vg={{docker_vg}} state=absent force=yes
+  with_items: "{{pvs.stdout_lines}}"
+
+- name: 拓展lib
+  lvg: vg={{docker_lib}} pvs={{item}}
+  with_items: "{{pvs.stdout_lines}}"
+
+- name: 创建lib_data
+  lvol: vg={{docker_lib}}  lv=data  size=100%VG force=yes
+  when: pvs.stdout_lines | count > 0

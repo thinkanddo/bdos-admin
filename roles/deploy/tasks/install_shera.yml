@@ -1,0 +1,66 @@
+# 参数信息
+#  work_dir  工作路径
+#  username  控制机用户名
+#  docker_registry_url: docker 仓库地址  boots_global.DOCKER_REGSTRY_URL
+#  docker_lib:  docker lib路径
+#  mysql_user: mysql用户
+#  mysql_password: mysql 密码
+#  mysql_ip: mysql 主机
+#  mysql_port: mysql 端口
+#
+
+
+- name: 将shera包解压到 work_dir
+  unarchive: src=tomcat.tar dest={{work_dir}} copy=no owner={{username}} group={{username}}
+
+- name: 启动shera容器
+  shell: |
+    docker run -it -d --restart=always --name shera --net=host
+    -v /etc/sysconfig/docker:/etc/sysconfig/docker
+    -v /etc/sysconfig/docker-network:/etc/sysconfig/docker-network
+    -v /etc/sysconfig/docker-storage:/etc/sysconfig/docker-storage
+    -v /etc/sysconfig/docker-storage-setup:/etc/sysconfig/docker-storage-setup
+    -v {{docker_lib}}:{{docker_lib}}
+    -v /var/run/docker.sock:/run/docker.sock
+    -v $(which docker):/bin/docker
+    -v /usr/bin/docker-current:/usr/bin/docker-current
+    -v /usr/lib64/libseccomp.so.2:/usr/lib64/libseccomp.so.2
+    -v {{work_dir}}/shera/code_shera/cache/log/:/Shera/log/
+    -v {{work_dir}}/shera/code_shera/cache/ssh/:/Shera/ssh/
+    -v {{work_dir}}/shera/code_shera/cache/ssh_config/:/etc/ssh
+    -v {{work_dir}}/shera/code_shera/cache/storage/:/Shera/storage/
+    -v {{work_dir}}/shera/code_shera/code/workspace/:/Shera/workspace/
+    -v {{work_dir}}/shera/code_shera/package/tools/:/Shera/tools/
+    -v {{work_dir}}/shera/mconf:/root/Shera/install/conf
+    -v {{work_dir}}/shera/code_shera/.m2:/root/.m2
+    -v {{work_dir}}/shera/code_shera/package/tools/genXML/gometalinter.v1:/Shera/tools/go/bin/gometalinter.v1
+    -v {{work_dir}}/shera/mconf/exec.sh:/root/Shera/exec.sh
+    -e server=0.0.0.0
+    -e img={{docker_registry_url}}
+    -e muser={{mysql_user}}
+    -e 'mcode={{mysql_password}}'
+    -e mpro=tcp
+    -e maddr={{mysql_ip}}
+    -e mport={{mysql_port}}
+    -e mname={{mysql_db_shera}} {{harbor_endpoint}}/shera_python:v3.0.2  /root/Shera/exec.sh
+
+- name: 修改shera 启动参数文件
+  lineinfile:
+    regexp: '^{{item.key}}'
+    line: '{{item.key}}={{value|default(item.default|default())}}'
+    dest: '{{work_dir}}/shera/mconf/she-ra.properties'
+  with_items: 
+  - {key: "img.registry",value: "{{docker_registry_url}}"}
+  - {key: "mysql_user",value: "{{mysql_user}}"}
+  - {key: "mysql_code",value: "{{mysql_password}}"}
+  - {key: "mysql_address",value: "{{mysql_ip}}"}
+  - {key: "mysql_port",value: "{{mysql_port}}"}
+  - {key: "mysql_dbname",value: "shera"}
+
+- name: copy ssh 文件
+  copy: src=/etc/ssh dest={{work_dir}}/shera/code_shera/cache/ssh_config  force=no
+
+- name: 修改ssh文件
+  lineinfile: 
+    line: "StrictHostKeyChecking no"
+    dest: "{{work_dir}}/shera/code_shera/cache/ssh_config/ssh_config"

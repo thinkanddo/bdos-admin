@@ -1,0 +1,69 @@
+# harbor_work_dir harbor工作目录
+# work_dir_ansible  ansible工作目录
+
+- name: 同步harbor安装包(时间较长，请耐心等待...)
+  synchronize: src={{item}} dest={{harbor_work_dir}} dest_port={{ansible_ssh_port}} group=no owner=no rsync_opts=--update,--delete
+  with_items: ["data","harbor.tar"]
+
+- name: 解压harbor 安装包
+  args:
+    chdir: "{{harbor_work_dir}}"
+  shell: tar -xf harbor.tar
+
+- name: 安装docker-compose二进制文件
+  args:
+    chdir: "{{harbor_work_dir}}/harbor"
+  shell: cp -n docker-compose /usr/bin/
+
+- name: 修改harbor配置文件
+  lineinfile:
+    path: "{{harbor_work_dir}}/harbor/harbor.cfg"
+    backrefs: yes
+    regexp: "^{{item.key}} = .*$"
+    line: "{{item.key}} = {{item.value}}"
+  with_items:
+  - {key: "hostname",value: "{{ harbor_dns~':'~https_ports }}"}
+  - {key: "ui_url_protocol",value: "https"}
+  - {key: "ssl_cert",value: "{{harbor_work_dir}}/data/cert/server.crt"}
+  - {key: "ssl_cert_key",value: "{{harbor_work_dir}}/data/cert/server.key"}
+  - {key: "secretkey_path",value: "{{harbor_work_dir}}/data"}
+  - {key: "harbor_admin_password",value: "{{harbor_admin_password}}"}
+
+- name: 修改harbor容器启动yml文件
+  template: dest={{harbor_work_dir}}/harbor/docker-compose.yml src=docker-compose.yml mode=0644
+
+- name: 清理harbor容器
+  shell: docker-compose -f {{item}} down
+  args:
+    chdir: "{{harbor_work_dir}}/harbor/"
+  with_items:
+  - "docker-compose.yml"
+  - "docker-compose.notary.yml"
+  - "docker-compose.chartmuseum.yml"
+  - "docker-compose.clair.yml"
+  ignore_errors: yes
+
+- name: 创建harbor证书目录
+  file: path={{harbor_work_dir}}/data/cert state=directory
+
+- name: 生成harbor私钥
+  openssl_privatekey: path={{harbor_work_dir}}/data/cert/server.key
+
+- name: 生成harbor 的csr
+  openssl_csr:
+    path: "{{harbor_work_dir}}/data/cert/server.csr"
+    common_name: "{{harbor_dns}}"
+    privatekey_path: "{{harbor_work_dir}}/data/cert/server.key"
+    subject_alt_name: "IP:{{harbor_ip|default(inventory_hostname)}},DNS:{{harbor_dns}}"
+
+- name: 生成harbor证书
+  openssl_certificate:
+    path: "{{harbor_work_dir}}/data/cert/server.crt"
+    privatekey_path: "{{harbor_work_dir}}/data/cert/server.key"
+    csr_path: "{{harbor_work_dir}}/data/cert/server.csr"
+    provider: selfsigned
+
+- name: 启动harbor (时间较长，请耐心等待...)
+  args:
+    chdir: "{{harbor_work_dir}}/harbor"
+  shell: ./install.sh --with-notary --with-clair --with-chartmuseum

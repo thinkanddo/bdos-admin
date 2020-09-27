@@ -1,0 +1,52 @@
+---
+- hosts: ceph_rgw[0]
+  sudo: yes
+  vars:
+    ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+    ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+    ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+  roles:
+  - role: ceph
+    vars:
+      role_step: change_config.yml
+      extend_flag: True
+      civetweb_port: "{{boots_global.PORT_CEPH_RGW}}"
+    when: groups.ceph_mon_all is defined
+
+- hosts: ceph_rgw
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: add_rgw.yml
+      ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+      ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+      ceph_work_dir: /var/lib/ceph
+      ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+      rgw_hostname: "{{boots_roles.ceph_rgw[inventory_hostname].hostname}}"
+
+- hosts: ceph_rgw[0]
+  tasks:
+  - name: 获取rgw admin用户信息
+    shell:  radosgw-admin user info --uid=admin --format=json 2>/dev/null
+    register: rgw_admin_info
+  - name: 设置临时变量信息
+    set_fact:
+      tmp_access_key: "{{rgw_admin_info.stdout|from_json|json_query('keys[?user==`admin`].access_key')}}"
+      tmp_secret_key: "{{rgw_admin_info.stdout|from_json|json_query('keys[?user==`admin`].secret_key')}}"
+  - name: 保存全局信息
+    vars:
+      ansible_global:
+        COMPOSE_CEPH_RGW_ACCESS_KEY: "{{tmp_access_key[0]}}"
+        COMPOSE_CEPH_RGW_SECRET_KEY: "{{tmp_secret_key[0]}}"
+        COMPOSE_CEPH_RGW_IP: "{{inventory_hostname}}"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"
+    when: groups.ceph_mon_all is not defined
+
+- hosts: ceph_rgw
+  tasks:
+  - name: 保存ceph_rgw角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.ceph_rgw[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+

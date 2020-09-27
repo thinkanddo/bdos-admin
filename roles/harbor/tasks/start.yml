@@ -1,0 +1,4 @@
+- name: 启动harbor
+  args:
+    chdir: "{{harbor_path}}/harbor/"
+  shell: ./docker-compose -f docker-compose.yml -f docker-compose.notary.yml -f docker-compose.clair.yml -f docker-compose.chartmuseum.yml start

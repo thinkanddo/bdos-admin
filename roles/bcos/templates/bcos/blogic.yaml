@@ -1,0 +1,410 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: blogic
+  name: blogic
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: blogic
+  template:
+    metadata:
+      labels:
+        app: blogic
+        podevent: blogic
+      name: blogic
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "off"
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.blogic}}
+        imagePullPolicy: Always
+        name: blogic
+#        livenessProbe:
+#          httpGet:
+#            path: /blogic/health
+#            port: 8080
+#            host: localhost
+#          periodSeconds: 10
+#          initialDelaySeconds: 120
+#          failureThreshold: 6
+        resources:
+          limits:
+            cpu: "4"
+            memory: 16Gi
+          requests:
+            cpu: "1"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /usr/local/tomcat/webapps/blogic/WEB-INF/classes/bonc-security-base.properties
+          name: cf-blogic-security
+          subPath: bonc-security-base.properties
+        - mountPath: /usr/local/tomcat/webapps/blogic/WEB-INF/classes/conf/blogic.properties
+          name: cf-blogic-pro
+          subPath: blogic.properties
+        - mountPath: /usr/local/tomcat/webapps/blogic/WEB-INF/web.xml
+          name: cf-blogic-webxml
+          subPath: web.xml
+      imagePullSecrets:
+      - name: harbor-secret
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: bonc-security-base.properties
+            path: bonc-security-base.properties
+          name: blogic-security
+        name: cf-blogic-security
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: blogic.properties
+            path: blogic.properties
+          name: blogic-pro
+        name: cf-blogic-pro
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: web.xml
+            path: web.xml
+          name: blogic-webxml
+        name: cf-blogic-webxml
+---
+##################         Service         ##################
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: blogic
+    svcevent: blogic
+  name: blogic
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: http1
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: blogic
+  type: ClusterIP
+---
+##################         ingress         ##################
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-redirect-from: ~*http://([a-z]*):([0-9]*)/(.*)
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+  generation: 1
+  name: {{ingress_domain}}.blogic
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: blogic
+          servicePort: 8080
+        path: /blogic
+---
+##################         ConfigMap         ##################
+apiVersion: v1
+data:
+  bonc-security-base.properties: |
+    # BONC Security Settings
+    appCode=BLOGIC
+    apiType=REST
+    securityServiceURL=http://security:8080/security
+    sqltranforms=com.bonc.security.transform.TenantSQLTransform,com.bonc.security.transform.PrivilegeSQLTransform
+kind: ConfigMap
+metadata:
+  name: blogic-security
+  namespace: {{namespace}}
+---
+##################         ConfigMap         ##################
+apiVersion: v1
+data:
+  blogic.properties: |
+    #--------------------------------------------------------------------------------------------------
+    # DATABASE
+    #
+    # IMPORTANT: the embedded H2 database is used by default. It is recommended for tests but not for
+    # production use. Supported databases are MySQL, Oracle and PostgreSQL.
+
+    # User credentials.
+    # Permissions to create tables, indices and triggers must be granted to JDBC user.
+    # The schema must be created first.
+    blogic.jdbc.username={{mysql.username}}
+    blogic.jdbc.password={{mysql.password}}
+
+    #----- Embedded Database (default)
+    # H2 embedded database server listening port, defaults to 9092
+    #blogic.embeddedDatabase.port=9092
+
+
+    #----- MySQL 5.6 or greater
+    # Only InnoDB storage engine is supported (not myISAM).
+    # Only the bundled driver is supported. It can not be changed.
+    blogic.jdbc.driver=com.mysql.jdbc.Driver
+    blogic.jdbc.url=jdbc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.blogic}}?autoReconnect=true&useUnicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useConfigs=maxPerformance&useSSL=false
+
+    #----- Connection Pool Settings
+    # The maximum number of active connections that can be allocated
+    # at the same time, or negative for no limit.
+    blogic.jdbc.initial_pool_size = 10
+    blogic.jdbc.min_size = 10
+    blogic.jdbc.max_size = 250
+    blogic.jdbc.maxIdleTime = 1800
+    blogic.jdbc.acquireIncrement = 5
+    blogic.jdbc.acquireRetryAttempts = 30
+    blogic.jdbc.acquireRetryDelay = 1000
+    blogic.jdbc.testConnectionOnCheckin = true
+    blogic.jdbc.testConnectionOnCheckout = false
+    blogic.jdbc.idleConnectionTestPeriod = 90
+    blogic.jdbc.preferredTestQuery = SELECT 1
+    blogic.jdbc.checkoutTimeout = 20000
+
+    #----- Elastic Search Connection Settings
+    # Multiple ip, port separated by commas(,)
+    sys.es.cluster.name = {{es.cluster_name}}
+    sys.es.host.name = {{es.host_name}}
+    sys.es.transport.port = {{es.host_port}}
+    sys.es.http.port = {{es.http_port}}
+    sys.es.sniff.enable = false
+    es.high.light.pre = <span class="es-highlight">
+    es.high.light.post = </span>
+
+    #----- ElasticSearch SSL Settings
+    #es.searchguard.ssl.transport.enabled = true
+    #es.searchguard.hostname.verification=false
+    #es.searchguard.keystore.jks=admin-keystore.jks
+    #es.searchguard.truststore.jks=truststore.jks
+    #es.searchguard.path.conf=blogic-core/src/main/resources/conf/ssl/
+    #es.searchguard.username = admin
+    #es.searchguard.password = admin
+
+    #----- Kafka Connection Settings
+    sys.kafka.url =
+    sys.kafka.zk.url =
+
+    #------ thanos Connection Settings
+    sys.thanos.url = prometheus.kube-system.svc:9090
+
+    #------ Prometheus Connection Settings
+    sys.prometheus.urls = prometheus.kube-system.svc:9090
+    sys.blogkit.master.url=logkit.bcos.svc:8100
+    api.sms.services=http://127.0.0.1/smsinterface/sms/headquarters/sendlist
+
+    #----- Blogic Domain
+    blogic.domain.name = *
+kind: ConfigMap
+metadata:
+  name: blogic-pro
+  namespace: {{namespace}}
+---
+##################         ConfigMap         ##################
+apiVersion: v1
+data:
+  web.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    	xmlns="http://java.sun.com/xml/ns/javaee"
+    	xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+    	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+    	version="3.0">
+
+    	<display-name>Blogic Web Application</display-name>
+
+    	<!-- Log4j Context -->
+    	<context-param>
+    		<param-name>log4jConfigLocation</param-name>
+    		<param-value>classpath:conf/log4j.xml</param-value>
+    	</context-param>
+    	<!-- Spring Context -->
+    	<context-param>
+    		<param-name>contextConfigLocation</param-name>
+    		<param-value>
+    			classpath:META-INF/spring/application-context.xml
+    			classpath:META-INF/spring/security-context-cas.xml
+    			classpath*:META-INF/spring/application-app-*-context.xml
+    		</param-value>
+    	</context-param>
+
+    	<!-- listener -->
+    	<listener>
+    		<listener-class>org.springframework.web.util.Log4jConfigListener</listener-class>
+    	</listener>
+    	<listener>
+    		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    	</listener>
+    	<listener>
+    		<listener-class>com.bonc.logic.platform.listener.PlatformServletContextListener</listener-class>
+    	</listener>
+    	<listener>
+    		<listener-class>org.jasig.cas.client.session.SingleSignOutHttpSessionListener</listener-class>
+    	</listener>
+
+    	<!-- filter -->
+    	<filter>
+    		<filter-name>encodingFilter</filter-name>
+    		<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+    		<init-param>
+    			<param-name>encoding</param-name>
+    			<param-value>UTF-8</param-value>
+    		</init-param>
+    		<init-param>
+    			<param-name>forceEncoding</param-name>
+    			<param-value>true</param-value>
+    		</init-param>
+    	</filter>
+    	<filter-mapping>
+    		<filter-name>encodingFilter</filter-name>
+    		<url-pattern>/*</url-pattern>
+    	</filter-mapping>
+
+    	<!-- CAS filter -->
+    	<filter>
+    		<filter-name>SSO Filter</filter-name>
+    		<filter-class>com.bonc.sso.client.SSOFilter</filter-class>
+    		<init-param>
+    			<description>CAS客户端地址 </description>
+    			<param-name>serverName</param-name>
+    			<param-value>http://blogic:8080</param-value>
+    		</init-param>
+    		<init-param>
+    			<description>CAS服务器地址全路径 </description>
+    			<param-name>casServerUrlPrefix</param-name>
+    			<param-value>http://cas:8080/cas</param-value>
+    		</init-param>
+    		<init-param>
+    			<description>CAS服务器登录地址全路径 </description>
+    			<param-name>casServerLoginUrl</param-name>
+    			<param-value>http://cas:8080/cas/login</param-value>
+    		</init-param>
+    		<init-param>
+    			<param-name>singleSignOut</param-name>
+    			<param-value>true</param-value>
+    		</init-param>
+    		<init-param>
+    			<param-name>skipUrls</param-name>
+    			<param-value>.*/css/.*,.*/js/.*,.*/img/.*,.*/files/.*,.*/fonts/.*,/health,/data/logkit/collector/register,/api/.*</param-value>
+    		</init-param>
+    		<init-param>
+    			<param-name>loginUserHandle</param-name>
+    			<param-value>com.bonc.logic.platform.sso.cas.StandardCasAuthHandler</param-value>
+    		</init-param>
+    		<init-param>
+    			<param-name>encoding</param-name>
+    			<param-value>UTF-8</param-value>
+    		</init-param>
+    	</filter>
+    	<filter-mapping>
+    		<filter-name>SSO Filter</filter-name>
+    		<url-pattern>/*</url-pattern>
+    	</filter-mapping>
+
+    	<filter>
+    		<filter-name>springSecurityFilterChain</filter-name>
+    		<filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    	</filter>
+    	<filter-mapping>
+    		<filter-name>springSecurityFilterChain</filter-name>
+    		<url-pattern>/*</url-pattern>
+    	</filter-mapping>
+
+    	<filter>
+    		<filter-name>openEntityManagerInViewFilter</filter-name>
+    		<filter-class>org.springframework.orm.jpa.support.OpenEntityManagerInViewFilter</filter-class>
+    	</filter>
+    	<filter-mapping>
+    		<filter-name>openEntityManagerInViewFilter</filter-name>
+    		<url-pattern>/*</url-pattern>
+    	</filter-mapping>
+
+    	<filter>
+    		<filter-name>contextLoaderFilter</filter-name>
+    		<filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    	</filter>
+    	<filter-mapping>
+    		<filter-name>contextLoaderFilter</filter-name>
+    		<url-pattern>/*</url-pattern>
+    	</filter-mapping>
+
+    	<filter>
+    		<filter-name>sitemesh</filter-name>
+    		<filter-class>org.sitemesh.config.ConfigurableSiteMeshFilter</filter-class>
+    	</filter>
+
+    	<filter-mapping>
+    		<filter-name>sitemesh</filter-name>
+    		<url-pattern>/*</url-pattern>
+    	</filter-mapping>
+
+    	<filter>
+    		<filter-name>xssFilter</filter-name>
+    		<filter-class>com.bonc.logic.platform.filter.XssFilter</filter-class>
+    		<init-param>
+    			<description>需要转义的url正则表达式列表</description>
+    			<param-name>escapeUrls</param-name>
+    			<param-value>
+    				.*/setting/.*
+    				.*/manager/.*,receivers,threshold,labelJson,description,checkArr
+    				.*/data/.*,parseStr,rule,headPattern,transform,runnerConfig
+    				.*/app/launcher/personal
+    				.*/app/search/.*,query,dashparams,panelparams
+    				.*/app/monitor/orchestration/index/ajax/dashboard
+    				.*/app/monitor/orchestration/ajax/(?!search).*
+    				.*/app/monitor/orchestration/.*view
+    				.*/app/monitor/mq/.*/manage/detail/basic
+    				.*/app/monitor/alarm/conf/ajax.*customize
+    			</param-value>
+    		</init-param>
+    	</filter>
+    	<filter-mapping>
+    		<filter-name>xssFilter</filter-name>
+    		<url-pattern>/*</url-pattern>
+    	</filter-mapping>
+
+    	<!-- servlet -->
+    	<servlet>
+    		<servlet-name>FrontDispatcher</servlet-name>
+    		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    		<init-param>
+    			<param-name>contextConfigLocation</param-name>
+    			<param-value>classpath:META-INF/spring/servlet-context.xml</param-value>
+    		</init-param>
+    		<load-on-startup>1</load-on-startup>
+    	</servlet>
+    	<servlet-mapping>
+    		<servlet-name>FrontDispatcher</servlet-name>
+    		<url-pattern>/</url-pattern>
+    	</servlet-mapping>
+
+    	<session-config>
+    		<session-timeout>90</session-timeout>
+    	</session-config>
+
+    	<welcome-file-list>
+    		<welcome-file>index.jsp</welcome-file>
+    	</welcome-file-list>
+    	<error-page>
+    		<error-code>404</error-code>
+    		<location>/404.jsp</location>
+    	</error-page>
+    	<error-page>
+    		<error-code>500</error-code>
+    		<location>/error.jsp</location>
+    	</error-page>
+    </web-app>
+kind: ConfigMap
+metadata:
+  name: blogic-webxml
+  namespace: {{namespace}}

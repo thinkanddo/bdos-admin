@@ -1,0 +1,20 @@
+- name: 清理docker thinpool
+  lvol: vg={{docker_vg}}  lv=thinpool  state=absent force=yes
+
+- name: 清理docker thinpoolmeta
+  lvol: vg={{docker_vg}}  lv=thinpoolmeta  state=absent force=yes
+
+- name: 创建docker thinpool
+  lvol: vg={{docker_vg}}  lv=thinpool  opts="--wipesignatures y" size=93%VG force=yes
+
+- name: 创建docker thinpoolmeta
+  lvol: vg={{docker_vg}}  lv=thinpoolmeta  opts="--wipesignatures y" size=1%VG force=yes
+
+- name: 转换docker thinpool
+  shell: lvconvert -y --zero n -c 1024K --thinpool {{docker_vg}}/thinpool --poolmetadata {{docker_vg}}/thinpoolmeta
+
+- name: 配置lvm扩容比例profile文件
+  copy: dest=/etc/lvm/profile/{{docker_vg}}-thinpool.profile src=thinpool.profile
+
+- name: 使profile文件生效
+  shell: lvchange --metadataprofile {{docker_vg}}-thinpool {{docker_vg}}/thinpool

@@ -1,0 +1,9 @@
+- name: 循环备份
+  include: upgrade_db.yml
+  vars:
+    db_name: "{{db_item.key}}"
+    db_files: "{{db_item.value}}"
+  when: db_item.value|count>0
+  loop_control:
+    loop_var: db_item
+  with_dict: "{{upgrade.db}}"

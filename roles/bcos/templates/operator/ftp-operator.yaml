@@ -1,0 +1,181 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: ftp-operator
+  labels:
+    app: ftp-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ftp-operator
+  template:
+    metadata:
+      labels:
+        app: ftp-operator
+    spec:
+        serviceAccountName: ftp-operator
+        containers:
+        - name: ftp-operator
+          image: {{harbor.dns}}:{{harbor.port}}/{{images.operator.ftp_operator}}
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 8080
+          volumeMounts:
+          - mountPath: /opt/operator-log
+            name: ftp-operator-bdos-log
+        volumes:
+        - flexVolume:
+            driver: sysoperator.pl/lvm
+            fsType: ext4
+            options:
+              mountoptions: relatime,nobarrier
+              size: 10Gi
+              volumeID: ftp-operator-bdos-log
+              volumegroup: operatorvg
+          name: ftp-operator-bdos-log
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ftp-operator
+spec:
+  ports:
+  - name: ftp-operator
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: ftp-operator
+  type: NodePort
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: ftp-operator
+rules:
+- apiGroups:
+  - ftp.bonc.com
+  resources:
+  - ftpclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - "*"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ftp-operator
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: ftp-operator
+subjects:
+- kind: ServiceAccount
+  name: ftp-operator
+  namespace: {{operator_ns}}
+roleRef:
+  kind: ClusterRole
+  name: ftp-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: ftp-operator
+rules:
+- apiGroups:
+  - ftp.bonc.com
+  resources:
+  - ftpclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - "*"
+  resources:
+  - secrets
+  verbs:
+  - "*"
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: ftp-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ftp-operator
+subjects:
+- kind: ServiceAccount
+  name: ftp-operator
+  namespace: {{operator_ns}}

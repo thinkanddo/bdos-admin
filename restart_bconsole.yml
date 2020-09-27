@@ -1,0 +1,10 @@
+- hosts: master[0]
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: bcos
+    vars:
+      role_step: restart.yaml
+      service_name: bconsole
+      bcos_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/yaml/bcos"

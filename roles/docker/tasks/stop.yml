@@ -1,0 +1,15 @@
+
+- name: 停止 docker 服务
+  service: name=docker state=stopped
+
+- name: 等到 容器全部停止
+  shell: ps -ef | grep docker | grep -v grep | grep -v ansible | awk '{print $2}'
+  register: result
+  until: result.stdout_lines | count == 0
+  retries: 60
+  delay: 2
+  ignore_errors: yes
+
+- name: 等到docker 进程停止
+  shell: ps -ef | grep docker | grep -v grep | grep -v ansible | awk '{print $2}' | xargs kill -9
+  when: result.failed | default (false)

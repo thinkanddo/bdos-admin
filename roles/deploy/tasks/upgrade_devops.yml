@@ -1,0 +1,21 @@
+- name: 获取jpi 文件列表
+  find: paths={{devops.package}}/devops_home/plugins patterns=*.jpi recurse=no
+  register: jpi_files
+  delegate_to: localhost
+
+- name: 删除jpi 目录
+  file: path={{mount_path}}/devops/devops_home/plugins/{{ item | splitext | first | basename }} state=absent
+  with_items: "{{jpi_files.files|map(attribute='path')|list}}"
+
+- name: 删除jpi 文件
+  file: path={{mount_path}}/devops/devops_home/plugins/{{ item | basename }} state=absent
+  with_items: "{{jpi_files.files|map(attribute='path')|list}}"
+
+- name: 同步jenkins安装包
+  synchronize: src={{devops.package}} dest={{mount_path}} dest_port={{ansible_ssh_port}} group=no owner=no rsync_opts='--update'
+
+- name: 启动devops
+  args:
+    chdir: "{{mount_path}}/devops/devops_scripts"
+  shell: "sh {{item}}"
+  with_items: "{{script_list}}"

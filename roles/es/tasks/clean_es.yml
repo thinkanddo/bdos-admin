@@ -1,0 +1,7 @@
+- name: 停止删除es服务
+  service: name=elasticsearch state=stopped enabled=no
+  ignore_errors: yes
+
+- name: 停止删除es服务
+  service: name=es state=stopped enabled=no
+  ignore_errors: yes

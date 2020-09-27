@@ -1,0 +1,11 @@
+- name: 获取hostname
+  shell: hostname
+  register: hostname
+
+- name: 查询 mds 服务状态
+  shell: systemctl status ceph-mds@{{hostname.stdout}} -l
+  ignore_errors: yes
+  register: service_result
+
+- name: 打印 mds 服务状态
+  debug: msg={{service_result.stdout}}

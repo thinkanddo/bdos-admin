@@ -1,0 +1,96 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: bdocs
+  name: bdocs
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: bdocs
+  template:
+    metadata:
+      labels:
+        app: bdocs
+        podevent: bdocs
+      name: bdocs
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "{{pinpoint.switch}}"
+        - name: PINPOINT_SERVER_IP
+          value: "{{pinpoint.server_ip}}"
+        - name: PINPOINT_TCP_PORT
+          value: "{{pinpoint.tcp_port}}"
+        - name: PINPOINT_STAT_PORT
+          value: "{{pinpoint.stat_port}}"
+        - name: PINPOINT_SPAN_PORT
+          value: "{{pinpoint.span_port}}"
+        - name: POD_TENANT_NAME
+          value: "{{namespace}}"
+        - name: POD_SERVICE_NAME
+          value: bdocs
+        - name: JAVA_OPTS
+          value: -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.bdocs}}
+        imagePullPolicy: Always
+        name: bdocs
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+      imagePullSecrets:
+      - name: harbor-secret
+
+---
+##################         Service          ##################
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bdocs
+    svcevent: bdocs
+  name: bdocs
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: bcos
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: bdocs
+  type: ClusterIP
+
+---
+##################         ingress         ##################
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-body-size: 3G
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1200"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1200"
+    nginx.ingress.kubernetes.io/proxy-redirect-from: ~*http://([a-z]*):([0-9]*)/(.*)
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+  name: {{ingress_domain}}.bdocs
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: bdocs
+          servicePort: 8080
+        path: /bdocs

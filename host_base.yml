@@ -1,0 +1,19 @@
+---
+- import_playbook: host_init.yml
+
+- hosts: default
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: device_init.yml
+      work_dir: "{{boots_global.SYSTEM_WORK_DIR}}"
+      dev_opt: "2"
+      controller_ip: "{{boots_global.SYSTEM_CONTROL_IP}}"
+      enable_dev: "{{boots_roles.default[inventory_hostname].devs|json_query('[?status==`\"0\"`]')}}"
+      unformat_dev: "{{boots_roles.default[inventory_hostname].devs|json_query('[?status==`\"3\"`].devName')}}"
+  post_tasks:
+  - name: 保存default角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.default[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"

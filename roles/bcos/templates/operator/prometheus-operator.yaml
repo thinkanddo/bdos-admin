@@ -1,0 +1,797 @@
+kind: ConfigMap
+metadata:
+  name: prometheus-operator-config
+apiVersion: v1
+data:
+  prometheus.yaml: |
+    #############################
+    #  需要使用configmap的配置项
+    #  1.api_server  #${API_SERVER}
+    #  2.kube-state-metrics容器内部端口号  #${KUBE_STATE_METRICS_PORT}
+    #  3.blackbox-exporter容器内部端口号  #${BLACKBOX_EXPORTER_PORT}
+    #############################
+    global:
+      scrape_interval: 15s
+      scrape_timeout: 10s
+      evaluation_interval: 20s
+    scrape_configs:
+    - job_name: 'mysql'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_mysql]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: database
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '3306'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [job]
+        replacement: ""
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'storm'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_storm]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: hadoop
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '8080'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_cell]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'hbase_hm'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_hm_hbase]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_jmx_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: hadoop
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '60010'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_cell]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'hbase_hr'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_hr_hbase]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_jmx_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: hadoop
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '60030'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_cell]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'elasticsearch'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_elasticsearch]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: database
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '9200'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_clusterName]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'redis'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_redis]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: database
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_host_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '6379'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [job]
+        replacement: ""
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'memcached'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_memcached]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: database
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '11211'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [job]
+        replacement: ""
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'kafka'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_kafka]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: MQ
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '9308'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_cell]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+
+    - job_name: 'kafka_jmx'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_kafka]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_jmx_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: MQ
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '9990'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_cell]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'yarn_rm'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_rm_yarn]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: hadoop
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '21388'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_cell]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'yarn_nm'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_nm_yarn]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_jmx_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: hadoop
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '9991'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_cell]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'zookeeper'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_zookeeper]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - source_labels: [job]
+        replacement: hadoop
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        replacement: '2181'
+        target_label: monitor_port
+      - source_labels: [__meta_kubernetes_namespace]
+        replacement: $1
+        target_label: monitor_tenant
+      - source_labels: [__meta_kubernetes_pod_name]
+        replacement: $1
+        target_label: monitor_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_clusterName]
+        replacement: $1
+        target_label: monitor_cluster
+      - source_labels: [__meta_kubernetes_pod_label_cpu]
+        replacement: $1
+        target_label: monitor_cpu
+      - source_labels: [__meta_kubernetes_pod_label_memory]
+        replacement: $1
+        target_label: monitor_memory
+      - source_labels: [__meta_kubernetes_pod_label_container_name]
+        replacement: $1
+        target_label: monitor_container_name
+    - job_name: 'file_sd'
+      file_sd_configs:
+      - files: ['targets.json']
+    - job_name: 'kubernetes_cluster'
+      static_configs:
+      ##########################2###########################
+      - targets: ['kube-state-metrics.kube-system:${KUBE_STATE_METRICS_PORT}']
+    - job_name: 'kubernetes_cAdvisor'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: node
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_node_address_InternalIP]
+        replacement: $1:4194
+        target_label: __address__
+      - regex: __meta_kubernetes_node_label_(.+)
+        action: labelmap
+    - job_name: 'linux_node'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_linux_node]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address_
+      - regex: __meta_kubernetes_node_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - replacement: "server"
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__address__]
+        replacement: $1
+        target_label: instance
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_env
+      - replacement: ""
+        target_label: monitor_port
+      - replacement: ""
+        target_label: monitor_tenant
+      - replacement: ""
+        target_label: monitor_cluster
+    - job_name: 'linux_process'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_linux_process]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: (.*);(.*)
+        replacement: $1:$2
+        target_label: __address_
+      - regex: __meta_kubernetes_node_label_(.+)
+        action: labelmap
+      - replacement: true
+        target_label: is_container
+      - replacement: ""
+        target_label: monitor_type
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_host
+      - source_labels: [__address__]
+        replacement: $1
+        target_label: instance
+      - source_labels: [__meta_kubernetes_pod_ip]
+        replacement: $1
+        target_label: monitor_env
+      - replacement: ""
+        target_label: monitor_port
+      - replacement: ""
+        target_label: monitor_tenant
+      - replacement: ""
+        target_label: monitor_cluster
+    - job_name: 'kubernetes_services'
+      metrics_path: /probe
+      params:
+        module: [http_2xx]
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: service
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]
+        regex: true
+        action: keep
+      - source_labels: [__address__]
+        target_label: __param_target
+      - replacement: blackbox-exporter.kube-system:9115
+        target_label: __address__
+      - source_labels: [__param_target]
+        target_label: instance
+      - regex: __meta_kubernetes_service_label_(.+)
+        action: labelmap
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service_name
+    - job_name: 'kubernetes_pods'
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        regex: true
+        action: keep
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+      - regex: __meta_kubernetes_pod_label_(.+)
+        action: labelmap
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod_name
+    - job_name: 'kubernetes_ingresses'
+      metrics_path: /probe
+      params:
+        module: [http_2xx]
+      kubernetes_sd_configs:
+      ##########################1###########################
+      - api_server: ${API_SERVER}
+        role: ingress
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_ingress_annotation_prometheus_io_probe]
+        regex: true
+        action: keep
+      - source_labels: [__meta_kubernetes_ingress_scheme,__address__,__meta_kubernetes_ingress_path]
+        regex: (.+);(.+);(.+)
+        replacement: ${1}://${2}${3}
+        target_label: __param_target
+      ##########################4###########################
+      - replacement: blackbox-exporter.kube-system:${BLACKBOX_EXPORTER_PORT}
+        target_label: __address__
+      - source_labels: [__param_target]
+        target_label: instance
+      - regex: __meta_kubernetes_ingress_label_(.+)
+        action: labelmap
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_ingress_name]
+        target_label: ingress_name
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prometheus-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - prometheus.bonc.com
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-operator
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: prometheus-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-operator
+subjects:
+- kind: ServiceAccount
+  name: prometheus-operator
+  namespace: {{operator_ns}}
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: prometheus-operator
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus-operator
+    spec:
+      serviceAccountName: prometheus-operator
+      containers:
+      - name: prometheus-operator
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.operator.prometheus_operator}}
+        imagePullPolicy: Always
+        volumeMounts:
+          - mountPath: /prometheusconf
+            name: prometheus-operator-config
+      volumes:
+        - configMap:
+            name: prometheus-operator-config
+          name: prometheus-operator-config
+

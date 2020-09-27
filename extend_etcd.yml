@@ -1,0 +1,38 @@
+---
+###### 模块配置说明 ######
+###### 模块配置说明 ######
+#  角色名称:  etcd角色，角色状态： 已安装
+#
+
+- hosts: etcd_old
+  tasks:
+  - name: 生成etcd 变量
+    set_fact:
+      etcd_client_url: http://{{inventory_hostname}}:{{boots_global.PORT_ETCD_CLIENT}}
+
+# 拓展 etcd
+- hosts: etcd_new
+  sudo: yes
+  serial: 1
+  vars_files:
+  - images.yaml
+  roles:
+  - role: etcd
+    vars:
+      role_step: add_etcd.yml
+      etcd_peer_port: "{{boots_global.PORT_ETCD_PEER}}"
+      etcd_client_port: "{{boots_global.PORT_ETCD_CLIENT}}"
+      etcd_mount_path: "/var/lib/etcd"
+  post_tasks:
+  - name: 保存etcd角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.etcd_new[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+- hosts: localhost
+  tasks:
+  - name: 保存etcd全局信息
+    vars:
+      ansible_global:
+        COMPOSE_ETCD_LINKED: "{{(groups.etcd_old|union(groups.etcd_new))|map('extract',hostvars,'etcd_client_url')|list|join(',')}}"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"

@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: kube-system
+spec:
+  ports:
+  - name: prometheus-9090
+    nodePort: {{port.prometheus|default(30030)}}
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    clusterName: prometheus
+  type: NodePort
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    clusterName: prometheus
+  name: prometheus
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      clusterName: prometheus
+  template:
+    metadata:
+      labels:
+        clusterName: prometheus
+    spec:
+      containers:
+      - args:
+        - --config.file=/conf/prometheus.yaml
+        - --storage.tsdb.retention=15d
+        - --web.enable-lifecycle
+        - --storage.tsdb.path=/prometheus
+        - --web.console.libraries=/etc/prometheus/console_libraries
+        - --web.console.templates=/etc/prometheus/consoles
+        command:
+        - /bin/prometheus
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.k8s.prometheus}}
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 10
+          initialDelaySeconds: 180
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 9090
+          timeoutSeconds: 10
+        name: prometheus
+        ports:
+        - containerPort: 9090
+          name: prometheus-9090
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /prometheus
+          name: prometheus-hostpath
+        - mountPath: /conf
+          name: prometheus-conf
+      nodeName: {{node_name|lower}}
+      restartPolicy: Always
+      volumes:
+      - hostPath:
+          path: /etc/localtime
+        name: localtime
+      - hostPath:
+          path: {{host_path}}
+        name: prometheus-hostpath
+      - configMap:
+          items:
+          - key: targets.json
+            path: targets.json
+          - key: prometheus.yaml
+            path: prometheus.yaml
+          name: prometheus-config
+        name: prometheus-conf

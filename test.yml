@@ -1,0 +1,25 @@
+- hosts: hadoop
+  sudo: yes
+  tasks:
+  - name: 创建文件夹
+    shell: mkdir -p /home/deployer/pack
+
+  - name: copy jdk.tar.gz py.tar.gz
+    copy: src=/bcos/datascience/roles/hadoop/files/beh_ansible/software/{{item}} dest=/home/deployer/pack/{{item}} mode=0644
+    with_items:
+    - jdk.tar.gz
+    - py.tar.gz
+  
+  - name: 解压
+    args:
+      chdir: "/home/deployer/pack/"
+    shell: tar -xzvf {{item}} 
+    with_items:
+    - jdk.tar.gz
+    - py.tar.gz
+  
+  - name: 赋权
+    args:
+      chdir: "/home/deployer/pack/"
+    shell: chmod -R 755 ./
+

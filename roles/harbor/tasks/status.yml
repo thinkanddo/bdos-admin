@@ -1,0 +1,9 @@
+- name: 查询harbor 状态
+  args:
+    chdir: "{{harbor_path}}/harbor/"
+  shell: ./docker-compose -f docker-compose.yml -f docker-compose.notary.yml -f docker-compose.clair.yml -f docker-compose.chartmuseum.yml ps
+  ignore_errors: yes
+  register: service_status
+
+- name: 打印harbor 状态
+  debug: msg={{service_status.stdout}}

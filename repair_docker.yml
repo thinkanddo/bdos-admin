@@ -1,0 +1,25 @@
+---
+- hosts: docker
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: docker
+    vars:
+      role_step: repair_docker.yml
+      check_list:
+      - name: storage
+        match: "| grep 'Unable to take ownership of thin-pool' "
+        memo: 'thinpool 池损坏'
+      - name: cgroup
+        match: "| grep \"Devices cgroup isn't mounted\""
+        memo: "cgroup 挂载异常"
+      - name: service
+        match: '| grep Active: | grep -v running'
+        memo: '服务未正常启动'
+
+- import_playbook: repair_harbor.yml
+
+- import_playbook: repair_devops.yml
+
+- import_playbook: repair_etcd.yml

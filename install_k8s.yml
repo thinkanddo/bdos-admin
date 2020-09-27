@@ -1,0 +1,161 @@
+---
+- hosts: master:node
+  sudo: yes
+  vars_files:
+  - images.yaml
+  pre_tasks:
+  - name: 引入应用版本
+    include_vars: file=version name=version
+  roles:
+  - role: k8s
+    vars:
+      role_step: clean_k8s.yml
+    when: not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+  - role: k8s
+    vars:
+      role_step: kubelet.yml
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+    when: not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+
+- hosts: etcd
+  sudo: yes
+  tasks:
+  - name: 清理k8s在etcd里存的数据
+    shell: docker exec -i etcd sh -c 'cd /usr/local/bin/;ETCDCTL_API=3 etcdctl --endpoints=http://{{inventory_hostname}}:2379 del --prefix /registry' || true
+    when: not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+
+- hosts: master[0]
+  sudo: yes
+  pre_tasks:
+  - name: 引入应用版本
+    include_vars: file=version name=version
+  roles:
+  - role: common
+    vars:
+      role_step: haproxy.yml
+      stats_port: "{{boots_global.PORT_K8S_STATS}}"
+      insecure_port_ha: "{{(boots_global.PORT_K8S_INSECURE_HA=='')|ternary(boots_global.PORT_K8S_INSECURE|int+1 ,boots_global.PORT_K8S_INSECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      insecure_port: "{{boots_global.PORT_K8S_INSECURE}}"
+      secure_port: "{{boots_global.PORT_K8S_SECURE}}"
+      balance_group: ["{{groups.master[0]}}"]
+    when: boots_global.COMPOSE_K8S_VIRTUAL_IP != "" and boots_global.COMPOSE_K8S_VIRTUAL_IP not in groups.master and not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+  - role: common
+    vars:
+      role_step: keepalived.yml
+      keep_state: MASTER
+      virtual_ip: "{{boots_global.COMPOSE_K8S_VIRTUAL_IP}}"
+    when: boots_global.COMPOSE_K8S_VIRTUAL_IP != "" and boots_global.COMPOSE_K8S_VIRTUAL_IP not in groups.master and not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+  - role: k8s
+    vars:
+      role_step: init_master.yml
+      secure_port_ha_tmp: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP != '')|ternary(secure_port_ha_tmp,boots_global.PORT_K8S_SECURE)}}"
+      virtual_ip: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(groups.master[0], boots_global.COMPOSE_K8S_VIRTUAL_IP)}}"
+      secure_port: "{{boots_global.PORT_K8S_SECURE}}"
+      insecure_port: "{{boots_global.PORT_K8S_INSECURE}}"
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+      pod_subnet: "{{boots_global.COMPOSE_K8S_POD_SUBNET}}"
+      service_node_port_range: "{{boots_global.PORT_K8S_SERVICE_NODE_MIN}}-{{boots_global.PORT_K8S_SERVICE_NODE_MAX}}"
+    when: not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+  - role: k8s
+    vars:
+      role_step: get_token.yml
+    when: not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+
+# 将master其他节点做成master
+- hosts: master:node:!master[0]
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      role_step: join_nodes.yml
+      master_node: "{{groups.master}}"
+      virtual_ip: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(groups.master[0], boots_global.COMPOSE_K8S_VIRTUAL_IP)}}"
+      secure_port_ha_tmp: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP != '')|ternary(secure_port_ha_tmp,boots_global.PORT_K8S_SECURE)}}"
+      k8s_endpoint: "{{virtual_ip}}:{{secure_port_ha}}"
+      master_token: "{{hostvars[groups.master[0]].master_token}}"
+      certificate_key: "{{hostvars[groups.master[0]].certificate_key}}"
+    when: not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+
+- hosts: master[1:]
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: haproxy.yml
+      stats_port: "{{boots_global.PORT_K8S_STATS}}"
+      insecure_port_ha: "{{(boots_global.PORT_K8S_INSECURE_HA=='')|ternary(boots_global.PORT_K8S_INSECURE|int+1 ,boots_global.PORT_K8S_INSECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      insecure_port: "{{boots_global.PORT_K8S_INSECURE}}"
+      secure_port: "{{boots_global.PORT_K8S_SECURE}}"
+      balance_group: "{{groups.master}}"
+    when: boots_global.COMPOSE_K8S_VIRTUAL_IP != "" and boots_global.COMPOSE_K8S_VIRTUAL_IP not in groups.master and not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+  - role: common
+    vars:
+      role_step: keepalived.yml
+      keep_state: BACKUP
+      virtual_ip: "{{boots_global.COMPOSE_K8S_VIRTUAL_IP}}"
+    when: boots_global.COMPOSE_K8S_VIRTUAL_IP != "" and boots_global.COMPOSE_K8S_VIRTUAL_IP not in groups.master and not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+
+## 增加dns 植入 根域名解析
+- hosts: master[0]
+  sudo: yes
+  vars:
+    data_path: "{{boots_global.SYSTEM_WORK_DIR}}/data"
+    yaml_path: "{{data_path}}/yaml"
+    back_path: "{{data_path}}/backup"
+  vars_files:
+  - images.yaml
+  pre_tasks:
+  - name: 删除coredns 资源
+    shell: source /etc/profile; kubectl delete cm -n kube-system coredns; kubectl delete deploy -n kube-system coredns
+  roles:
+  - role: common
+    vars:
+      role_step: haproxy.yml
+      stats_port: "{{boots_global.PORT_K8S_STATS}}"
+      insecure_port_ha: "{{(boots_global.PORT_K8S_INSECURE_HA=='')|ternary(boots_global.PORT_K8S_INSECURE|int+1 ,boots_global.PORT_K8S_INSECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      insecure_port: "{{boots_global.PORT_K8S_INSECURE}}"
+      secure_port: "{{boots_global.PORT_K8S_SECURE}}"
+      balance_group: "{{groups.master}}"
+    when: boots_global.COMPOSE_K8S_VIRTUAL_IP != "" and boots_global.COMPOSE_K8S_VIRTUAL_IP not in groups.master and not (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: kube-system
+      plugin_name: coredns
+      check_type: deploy
+      root_domain: "{{boots_global.SYSTEM_ROOT_DOMAIN}}"
+      ingress_host: "{{groups.node}}"
+      extra_hosts_path: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/hosts"
+      yaml_install:
+      - dns.yaml
+      yaml_update: []
+
+
+- hosts: localhost
+  tasks:
+  - name: 保存master全局信息
+    vars:
+      ansible_global:
+        COMPOSE_K8S_INSTALL_FLAG: "true"
+        PORT_K8S_INSECURE_HA: "{{(boots_global.PORT_K8S_INSECURE_HA=='')|ternary(boots_global.PORT_K8S_INSECURE|int+1 ,boots_global.PORT_K8S_INSECURE_HA)}}"
+        PORT_K8S_SECURE_HA: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"
+
+- hosts: master
+  tasks:
+  - name: 保存master角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.master[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+- hosts: node
+  tasks:
+  - name: 保存node角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.node[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"

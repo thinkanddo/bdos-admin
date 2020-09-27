@@ -1,0 +1,63 @@
+- hosts: es_master:es_data
+  sudo: yes
+  roles:
+  - role: es
+    vars:
+      role_step: status.yml
+
+- hosts: ceph_mon
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: status-mon.yml
+
+- hosts: ceph_osd
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: status-osd.yml
+
+- hosts: ceph_msd
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: status-mds.yml
+
+- hosts: ceph_rgw
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: status-rgw.yml
+
+- hosts: harbor
+  sudo: yes
+  roles:
+  - role: harbor
+    vars:
+      role_step: status.yml
+
+- hosts: docker
+  sudo: yes
+  roles:
+  - role: docker
+    vars:
+      role_step: status.yml
+
+- hosts: master:node
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      role_step: status.yml
+
+- hosts: master[0]
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      role_step: status-k8s.yml
+

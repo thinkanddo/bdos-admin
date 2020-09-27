@@ -1,0 +1,91 @@
+- name: 清理k8s相关资源
+  shell: source /etc/profile; kubectl delete ns {{namespace}} || true
+
+- name: 等待k8s清理完毕
+  shell: |
+    i=1
+    while true
+    do
+      a=$(source /etc/profile; kubectl get ns | grep -w {{namespace}} | wc -l)
+      if [[ $a -eq 0 ]];then
+        break
+      fi
+      if [[ $i -eq 100 ]];then
+        exit 1
+      fi
+      i=$[ $i + 1 ]
+      sleep 6
+    done
+
+- name: 创建临时目录
+  file: path={{bcos_path}} state=directory
+
+- name: 生成yaml文件
+  template: src=bcos/bcos.yaml dest={{bcos_path}} mode=0644
+
+- name: 安装bcos服务
+  shell: source /etc/profile; kubectl create -f {{bcos_path}}/bcos.yaml || true
+
+- name: 创建secret
+  shell: source /etc/profile; kubectl create secret -n bcos generic admin-conf --from-file=/etc/kubernetes/admin.conf || true
+
+- name: 在对应的租户创建harbor-secret
+  shell: source /etc/profile; kubectl create secret docker-registry harbor-secret --docker-server={{harbor.dns}}:{{harbor.port}} --docker-username={{harbor.username}} --docker-password={{harbor.password}} --docker-email={{harbor.email}} -n {{namespace}}  || true
+
+- name: 配置sonar token
+  shell: |
+    curl -X POST \
+    http://{{devops.ip}}:{{devops.jenkins_port}}/jenkins/scriptText \
+      -u admin:admin \
+      -H 'Cache-Control: no-cache' \
+      -H 'content-type: multipart/form-data;' \
+      -F 'script=import jenkins.model.*
+    import hudson.plugins.sonar.*
+    import hudson.plugins.sonar.model.TriggersConfig
+
+    def name = "localsonar"
+    def url = "http://{{devops.ip}}:{{devops.sonar_port}}"
+    def token = "ea829da668605f4d233defe8ba3869677650916a"
+    def mojo_version = ""
+    def additional_properties = ""
+    def triggers = new TriggersConfig()
+    def additional_analysis_properties = ""
+    def jenkins_instance = Jenkins.getInstance()
+    def sonar_global_conf = jenkins_instance.getDescriptor(SonarGlobalConfiguration.class)
+    SonarInstallation[] sonar_installations = sonar_global_conf.getInstallations()
+
+    def isExist = false
+    sonar_installations.each {
+        current_inst = (SonarInstallation) it
+        current_name = current_inst.getName()
+        //println("Current sonar connection is : $current_name")
+        if (current_name == name) {
+            isExist = true
+            return
+        }
+    }
+
+    if (!isExist) {
+        new_inst = new SonarInstallation(
+                name,
+                url,
+                token,
+                mojo_version,
+                additional_properties,
+                triggers,
+                additional_analysis_properties
+        )
+
+        List tempList = sonar_installations.toList()
+        tempList.add(new_inst)
+        sonar_installations = tempList as SonarInstallation[]
+
+        sonar_global_conf.setInstallations(sonar_installations)
+        sonar_global_conf.save()
+        jenkins_instance.save()
+        println("The sonar connection : $name add success!")
+        return true
+    }else{
+        println("The sonar connection : $name is exist!")
+        return false
+    }'

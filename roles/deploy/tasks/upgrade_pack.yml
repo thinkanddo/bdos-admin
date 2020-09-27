@@ -1,0 +1,58 @@
+- name: 设置备份目录
+  set_fact:
+    backup:
+      path: "{{work_dir}}/{{admin.package}}/cache/backup"
+      dirs:
+      - db
+      - boots
+      - version
+      version:
+      - images.yaml
+      - version
+
+- name: 创建备份目录
+  file: path="{{backup.path}}/{{item}}" state=directory force=true
+  with_items: "{{backup.dirs}}"
+
+- name: 备份版本信息
+  copy: src={{item}} dest={{backup.path}}/version
+  ignore_errors: yes
+  with_items: "{{backup.version}}"
+
+- name: 安装ftp
+  yum: name=ftp state=installed
+
+- name: 清理安装包目录
+  file: path={{admin.target}} state=absent
+
+- name: 创建安装包目录
+  file: path={{admin.target}} state=directory force=true
+
+- name: 从ftp拉取升级包
+  args:
+    chdir: "{{admin.target}}"
+  shell: |
+    ftp -n <<- EOF
+    open {{ftp.ip}} {{ftp.port}}
+    user {{ftp.username}} {{ftp.password}}
+    mkdir {{package_dir}}
+    cd {{package_dir}}
+    bin
+    get {{package_name}}
+    close
+    bye
+    EOF;
+
+- name: 解压升级包
+  args:
+    chdir: "{{admin.target}}"
+  shell: tar -xf {{package_name}}
+
+- name: 同步升级包
+  args:
+    chdir: "{{admin.target}}"
+  shell: rsync -ar --update --exclude={{image_file}} {{admin.package}} {{work_dir}}
+
+- name: 判断镜相包是否存在
+  stat: path={{ admin.target }}/{{admin.package}}/{{image_file}}
+  register: image_stat

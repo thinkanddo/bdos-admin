@@ -1,0 +1,14 @@
+---
+- hosts: etcd
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: etcd
+    vars:
+      role_step: repair_etcd.yml
+      etcd_peer_port: "{{boots_global.PORT_ETCD_PEER}}"
+      etcd_client_port: "{{boots_global.PORT_ETCD_CLIENT}}"
+      etcd_cluster_state: new
+      etcd_mount_path: "/var/lib/etcd"
+      etcd_linked: "{{boots_global.COMPOSE_ETCD_LINKED}}"

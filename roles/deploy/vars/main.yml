@@ -1,0 +1,8 @@
+harbor:
+  ip: "{{boots_global.COMPOSE_HARBOR_IP}}"
+  dns: "{{(boots_global.COMPOSE_HARBOR_DNS=='')|ternary(boots_global.COMPOSE_HARBOR_IP,boots_global.COMPOSE_HARBOR_DNS)}}"
+  port: "{{boots_global.PORT_HARBOR_HTTPS}}"
+  username: admin
+  password: "{{boots_global.COMPOSE_HARBOR_ADMIN_PASSWORD}}"
+  package: harbor
+  center: "harbor.center.com:8443"

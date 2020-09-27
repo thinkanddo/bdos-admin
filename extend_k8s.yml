@@ -1,0 +1,111 @@
+---
+
+- hosts: master_old[0]
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      role_step: get_token.yml
+
+- hosts: node:master
+  sudo: yes
+  vars_files:
+  - images.yaml
+  pre_tasks:
+  - name: 引入应用版本
+    include_vars: file=version name=version
+  roles:
+  - role: k8s
+    vars:
+      role_step: clean_k8s.yml
+    when: inventory_hostname not in groups.node_old
+  - role: k8s
+    vars:
+      role_step: kubelet.yml
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+    when: inventory_hostname not in groups.node_old
+  - role: k8s
+    vars:
+      role_step: join_nodes.yml
+      master_node: "{{groups.master}}"
+      virtual_ip: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(groups.master_old[0], boots_global.COMPOSE_K8S_VIRTUAL_IP)}}"
+      secure_port_ha_tmp: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP != '')|ternary(secure_port_ha_tmp,boots_global.PORT_K8S_SECURE)}}"
+      master_token: "{{hostvars[groups.master_old[0]].master_token}}"
+      certificate_key: "{{hostvars[groups.master_old[0]].certificate_key}}"
+      k8s_endpoint: "{{virtual_ip}}:{{secure_port_ha}}"
+
+- hosts: master_old:master
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: haproxy.yml
+      stats_port: "{{boots_global.PORT_K8S_STATS}}"
+      insecure_port_ha: "{{(boots_global.PORT_K8S_INSECURE_HA=='')|ternary(boots_global.PORT_K8S_INSECURE|int+1 ,boots_global.PORT_K8S_INSECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      insecure_port: "{{boots_global.PORT_K8S_INSECURE}}"
+      secure_port: "{{boots_global.PORT_K8S_SECURE}}"
+      balance_group: "{{groups.master | union (groups.master_old)}}"
+    when: boots_global.COMPOSE_K8S_VIRTUAL_IP != "" and boots_global.COMPOSE_K8S_VIRTUAL_IP not in groups.master and (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)
+  - role: common
+    vars:
+      role_step: keepalived.yml
+      keep_state: BACKUP
+      virtual_ip: "{{boots_global.COMPOSE_K8S_VIRTUAL_IP}}"
+    when: boots_global.COMPOSE_K8S_VIRTUAL_IP != "" and boots_global.COMPOSE_K8S_VIRTUAL_IP not in groups.master and (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool) and inventory_hostname in groups.master
+
+- hosts: node
+  sudo: yes
+  tasks:
+  - name: 保存node角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.node[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+- hosts: master
+  sudo: yes
+  tasks:
+  - name: 保存master角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.master[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+- hosts: master_old[0]
+  sudo: yes
+  vars_files:
+  - images.yaml
+  vars:
+    yaml_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/yaml"
+  roles:
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      plugin_name: prometheus
+      namespace: kube-system
+      node_exclude: []
+      check_type: deploy
+      port:
+        node: "{{boots_global.PORT_NODE_EXPORT}}"
+        process: "{{boots_global.PORT_PROCESS_EXPORT}}"
+        prometheus: "{{(boots_global.PORT_K8S_SERVICE_NODE_MIN|int)+10}}"
+      yaml_update:
+      - prometheus-configmap.yaml
+      yaml_install: []
+
+- hosts: operator
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: ["{{boots_roles.operator[inventory_hostname].devs}}"]
+  - role: bcos
+    vars:
+      role_step: lvm.yml
+  tasks:
+  - name: 保存operator角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.operator[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+

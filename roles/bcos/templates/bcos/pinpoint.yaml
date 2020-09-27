@@ -1,0 +1,199 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: pinpoint
+  name: pinpoint
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: pinpoint
+  template:
+    metadata:
+      labels:
+        app: pinpoint
+        podevent: pinpoint
+      name: pinpoint
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "off"
+        - name: POD_TENANT_NAME
+          value: {{namespace}}
+        - name: POD_SERVICE_NAME
+          value: pinpoint
+        - name: JAVA_OPTS
+          value: -Xms2048M -Xmx6144M -XX:PermSize=512M -XX:MaxNewSize=1024M -XX:MaxPermSize=512M -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.pinpoint}}
+        imagePullPolicy: Always
+        name: pinpoint
+        resources:
+          limits:
+            cpu: "4"
+            memory: 8Gi
+          requests:
+            cpu: "1"
+            memory: 2Gi
+        volumeMounts:
+        - mountPath: /usr/local/tomcat/webapps/pinpoint/WEB-INF/classes/elasticsearch.properties
+          name: cf-pinpoint-pro
+          subPath: elasticsearch.properties
+        - mountPath: /usr/local/tomcat/webapps/pinpoint/WEB-INF/classes/pinpoint-collector.properties
+          name: cf-pinpoint-pro
+          subPath: pinpoint-collector.properties
+      imagePullSecrets:
+      - name: harbor-secret
+      restartPolicy: Always
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: elasticsearch.properties
+            path: elasticsearch.properties
+          - key: pinpoint-collector.properties
+            path: pinpoint-collector.properties
+          name: pinpoint-pro
+        name: cf-pinpoint-pro
+---
+##################         Service         ##################
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: pinpoint
+    svcevent: pinpoint
+  name: pinpoint
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: http1
+    port: 9994
+    protocol: TCP
+    targetPort: 9994
+  - name: http2
+    port: 9995
+    protocol: UDP
+    targetPort: 9995
+  - name: http3
+    port: 9996
+    protocol: UDP
+    targetPort: 9996
+  - name: http4
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: pinpoint
+  type: ClusterIP
+---
+##################         ConfigMap         ##################
+apiVersion: v1
+data:
+  elasticsearch.properties: |
+    es.cluster.name={{es.cluster_name}}
+    es.cluster.hosts={{es.host_name|replace(',' , ':'~es.host_port~',')}}:{{es.host_port}}
+  pinpoint-collector.properties: |
+    # base data receiver config  ---------------------------------------------------------------------
+    collector.receiver.base.ip=0.0.0.0
+    collector.receiver.base.port=9994
+
+    # number of tcp worker threads
+    collector.receiver.base.worker.threadSize=256
+    # capacity of tcp worker queue
+    collector.receiver.base.worker.queueSize=2048
+    # monitoring for tcp worker
+    collector.receiver.base.worker.monitor=true
+
+    # stat receiver config  ---------------------------------------------------------------------
+    collector.receiver.stat.udp=true
+    collector.receiver.stat.udp.ip=0.0.0.0
+    collector.receiver.stat.udp.port=9995
+    collector.receiver.stat.udp.receiveBufferSize=4194304
+
+    # Should keep in mind that TCP transport load balancing is per connection.(UDP transport loadbalancing is per packet)
+    collector.receiver.stat.tcp=false
+    collector.receiver.stat.tcp.ip=0.0.0.0
+    collector.receiver.stat.tcp.port=9995
+
+    # number of udp statworker threads
+    collector.receiver.stat.worker.threadSize=256
+    # capacity of udp statworker queue
+    collector.receiver.stat.worker.queueSize=2048
+    # monitoring for udp stat worker
+    collector.receiver.stat.worker.monitor=true
+
+
+    # span receiver config  ---------------------------------------------------------------------
+    collector.receiver.span.udp=true
+    collector.receiver.span.udp.ip=0.0.0.0
+    collector.receiver.span.udp.port=9996
+    collector.receiver.span.udp.receiveBufferSize=4194304
+
+    # Should keep in mind that TCP transport load balancing is per connection.(UDP transport loadbalancing is per packet)
+    collector.receiver.span.tcp=false
+    collector.receiver.span.tcp.ip=0.0.0.0
+    collector.receiver.span.tcp.port=9996
+
+    # number of udp statworker threads
+    collector.receiver.span.worker.threadSize=32
+    # capacity of udp statworker queue
+    collector.receiver.span.worker.queueSize=256
+    # monitoring for udp stat worker
+    collector.receiver.span.worker.monitor=true
+
+
+    # configure l4 ip address to ignore health check logs
+    collector.l4.ip=
+
+    # change OS level read/write socket buffer size (for linux)
+    #sudo sysctl -w net.core.rmem_max=
+    #sudo sysctl -w net.core.wmem_max=
+    # check current values using:
+    #$ /sbin/sysctl -a | grep -e rmem -e wmem
+
+    # number of agent event worker threads
+    collector.agentEventWorker.threadSize=4
+    # capacity of agent event worker queue
+    collector.agentEventWorker.queueSize=1024
+
+    statistics.flushPeriod=1000
+
+    # -------------------------------------------------------------------------------------------------
+    # The cluster related options are used to establish connections between the agent, collector, and web in order to send/receive data between them in real time.
+    # You may enable additional features using this option (Ex : RealTime Active Thread Chart).
+    # -------------------------------------------------------------------------------------------------
+    # Usage : Set the following options for collector/web components that reside in the same cluster in order to enable this feature.
+    # 1. cluster.enable (pinpoint-web.properties, pinpoint-collector.properties) - "true" to enable
+    # 2. cluster.zookeeper.address (pinpoint-web.properties, pinpoint-collector.properties) - address of the ZooKeeper instance that will be used to manage the cluster
+    # 3. cluster.web.tcp.port (pinpoint-web.properties) - any available port number (used to establish connection between web and collector)
+    # -------------------------------------------------------------------------------------------------
+    # Please be aware of the following:
+    #1. If the network between web, collector, and the agents are not stable, it is advisable not to use this feature.
+    #2. We recommend using the cluster.web.tcp.port option. However, in cases where the collector is unable to establish connection to the web, you may reverse this and make the web establish connection to the collector.
+    #   In this case, you must set cluster.connect.address (pinpoint-web.properties); and cluster.listen.ip, cluster.listen.port (pinpoint-collector.properties) accordingly.
+    cluster.enable=true
+    cluster.zookeeper.address=localhost.localdomain
+    cluster.zookeeper.sessiontimeout=30000
+    cluster.listen.ip=
+    cluster.listen.port=
+
+    #collector.admin.password=
+    #collector.admin.api.rest.active=
+    #collector.admin.api.jmx.active=
+
+    collector.spanEvent.sequence.limit=10000
+
+    # Flink configuration
+    flink.cluster.enable=false
+    flink.cluster.zookeeper.address=localhost
+    flink.cluster.zookeeper.sessiontimeout=3000
+kind: ConfigMap
+metadata:
+  name: pinpoint-pro
+  namespace: {{namespace}}
+

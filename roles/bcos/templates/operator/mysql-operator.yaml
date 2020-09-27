@@ -1,0 +1,1192 @@
+apiVersion: v1
+data:
+  5.6-master: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  5.6-master-mm: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  5.6-slave: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    read-only=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  5.7-master: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  5.7-master-mm: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  5.7-slave: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    read-only=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  8.0-master: |
+    [mysqld]
+    secure-file-priv=""
+    default_authentication_plugin=mysql_native_password
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  8.0-master-mm: |
+    [mysqld]
+    secure-file-priv=""
+    default_authentication_plugin=mysql_native_password
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  8.0-slave: |
+    [mysqld]
+    secure-file-priv=""
+    default_authentication_plugin=mysql_native_password
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=ROW
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    read-only=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=REPEATABLE-READ
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=4M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=0
+    [client]
+    default-character-set=utf8mb4
+  data-cloud-v1.0-master: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8mb4
+  data-cloud-v1.0-master-mm: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8mb4
+  data-cloud-v1.0-slave: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    read-only=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8mb4
+  data-governance-cloud-v1.0-master: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8
+    collation-server=utf8_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8
+  data-governance-cloud-v1.0-master-mm: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8
+    collation-server=utf8_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8
+  data-governance-cloud-v1.0-slave: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    read-only=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8
+    collation-server=utf8_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8
+  data-governance-v4.1-master: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8
+    collation-server=utf8_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8
+  data-governance-v4.1-master-mm: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8
+    collation-server=utf8_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8
+  data-governance-v4.1-slave: |
+    [mysqld]
+    server-id=1
+    log-bin=mysql-bin
+    binlog_format=MIXED
+    sync-binlog=1
+    relay-log=mysql-relay-bin
+    log-slave-updates=1
+    read-only=1
+    slave-skip-errors=all
+    datadir=/var/lib/mysql
+    log-error=/var/log/mysql/error.log
+    slow_query_log=on
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time=10
+    log_queries_not_using_indexes=on
+    log_slow_admin_statements=on
+    thread_cache_size=-1
+    query_cache_size=1M
+    tmp_table_size=16M
+    sort_buffer_size=1M
+    read_buffer_size=1M
+    join_buffer_size=1M
+    max_connections=1024
+    table_open_cache=2K
+    innodb_buffer_pool_size=128M
+    innodb_buffer_pool_instances=1
+    transaction-isolation=READ-COMMITTED
+    innodb_max_dirty_pages_pct=75
+    lower_case_table_names=1
+    innodb_file_per_table=ON
+    innodb_open_files=-1
+    innodb_thread_concurrency=0
+    innodb_flush_log_at_trx_commit=0
+    max_allowed_packet=400M
+    interactive_timeout=28800
+    wait_timeout=28800
+    lock_wait_timeout=31536000
+    log_timestamps=SYSTEM
+    max_user_connections=0
+    binlog_cache_size=32K
+    innodb_log_buffer_size=16M
+    innodb_log_file_size=48M
+    innodb_log_files_in_group=2
+    innodb_lock_wait_timeout=50
+    max_connect_errors=100
+    default_tmp_storage_engine=InnoDB
+    default_storage_engine=InnoDB
+    character_set_filesystem=binary
+    character-set-server=utf8
+    collation-server=utf8_general_ci
+    federated=off
+    skip-name-resolve=on
+    expire_logs_days=7
+    log_bin_trust_function_creators=1
+    sql_mode=""
+    innodb_large_prefix=ON
+    [client]
+    default-character-set=utf8
+kind: ConfigMap
+metadata:
+  name: mysql-operator-config
+
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: mysql-operator
+  labels:
+    app: mysql-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-operator
+  template:
+    metadata:
+      labels:
+        app: mysql-operator
+    spec:
+        serviceAccountName: mysql-operator
+        containers:
+        - name: mysql-operator
+          image: {{harbor.dns}}:{{harbor.port}}/{{images.operator.mysql_operator}}
+          imagePullPolicy: Always
+          volumeMounts:
+          - mountPath: /opt/operator-log
+            name: mysql-operator-bdos-log
+          - mountPath: /usr/local/mysql/default-conf
+            name: mysql-operator-config
+          ports:
+          - containerPort: 8080
+          env:
+          - name: FTP_ADDRESS
+            value: {{ftp.ip}}:{{ftp.port}}
+          - name: FTP_USER
+            value: {{ftp.username}}
+          - name: FTP_PASSWORD
+            value: {{ftp.password}}
+          - name: FTP_DIR
+            value: "/backups"
+          - name: BDOS
+            value: http://bdos.bcos.svc:8080/bdos
+          - name: ETCD
+            value: {{etcd.linked}}
+          - name: DEFAULT_MYCNF_PATH
+            value: /usr/local/mysql/default-conf
+        volumes:
+        - flexVolume:
+            driver: sysoperator.pl/lvm
+            fsType: ext4
+            options:
+              mountoptions: relatime,nobarrier
+              size: 10Gi
+              volumeID: mysql-operator-bdos-log
+              volumegroup: operatorvg
+          name: mysql-operator-bdos-log
+        - configMap:
+            name: mysql-operator-config
+          name: mysql-operator-config
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mysql-operator
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: mysql-operator
+rules:
+- apiGroups:
+  - mysql.bonc.com
+  resources:
+  - mysqlclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: mysql-operator
+subjects:
+- kind: ServiceAccount
+  name: mysql-operator
+  namespace: {{operator_ns}}
+roleRef:
+  kind: ClusterRole
+  name: mysql-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: mysql-operator
+rules:
+- apiGroups:
+  - mysql.bonc.com
+  resources:
+  - mysqlclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - "*"
+  resources:
+  - secrets
+  verbs:
+  - "*"
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: mysql-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mysql-operator
+subjects:
+- kind: ServiceAccount
+  name: mysql-operator
+  namespace: {{operator_ns}}

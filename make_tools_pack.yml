@@ -1,0 +1,59 @@
+---
+- hosts: localhost
+  sudo: yes
+  vars_files:
+  - images.yaml
+  vars:
+    latest_tag: latest
+    bcos_tag: "{{boots_global.SYSTEM_CUR_VERSION}}"
+    target_dir: "{{bcos_tag.split('_')[0]}}"
+    work_dir: "{{boots_global.SYSTEM_WORK_DIR}}"
+    harbor_work_dir: "{{work_dir}}/harbor_data"
+    package_name: bcos-admin-{{bcos_tag}}-{{bcos_tag}}.tar
+    bcos_db_dir: "roles/bcos/templates/db"
+    package_dir: package
+    tools_dir: bcos-tools
+    ftp:
+      ip: "{{boots_global.COMPOSE_FTP_IP}}"
+      port: "{{boots_global.PORT_FTP_CONTROL}}"
+      username: "{{boots_global.COMPOSE_FTP_USERNAME}}"
+      password: "{{boots_global.COMPOSE_FTP_PASSWORD}}"
+    admin:
+      package: bcos-admin
+      path: "{{work_dir}}"
+      target: "{{work_dir}}/{{package_dir}}"
+      execute:
+      - cache
+      - .git
+      - .gitignore
+      - package.sh
+      - update.sh
+      - "*.retry"
+      - images.yaml
+      - version
+      - pub
+      - roles/bcos
+      - roles/es
+      - roles/deploy/files/devops
+      - roles/harbor/files
+    boots:
+      package: target/boots.jar
+      path: "{{work_dir}}/bcos-boots"
+      target: "{{work_dir}}/{{admin.package}}/roles/deploy/files"
+      repo: "{{work_dir}}/{{tools_dir}}/boots/{{version.boots}}"
+  roles:
+  - role: deploy
+    vars:
+      role_step: make_tools.yml
+  post_tasks:
+  - name: 提交tag数据
+    vars:
+      pack_info:
+        curVersion: "{{bcos_tag}}"
+        targetVersion: "{{bcos_tag}}"
+        packageName: "{{package_name}}"
+        packageSize: "{{package_size.stdout}}"
+        packagePath: "BCOS/V{{target_dir}}/01-install-pack/"
+        ftpLink: "ftp://{{ftp.username}}:{{ftp.password}}@{{ftp.ip}}:{{ftp.port}}/"
+        type: "2"
+    shell: "curl -X POST {{boots_global.SYSTEM_CALLBACK_URL}}/pack?pack={{pack_info|to_json|urlencode}}"

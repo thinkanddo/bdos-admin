@@ -1,0 +1,13 @@
+- name: 备份数据库文件
+  shell: mysqldump -u{{mysql.username}} -p{{mysql.password}} -P{{mysql.port}} -h{{mysql.ip}} --default-character-set=utf8 {{db_name}} > {{admin.package}}/cache/backup/db/{{db_name}}.sql
+  delegate_to: localhost
+
+- name: 生成文件
+  template: src=db/{{db_name}}/{{item}} dest={{bcos_sql_path}}
+  with_items: "{{db_files}}"
+  delegate_to: localhost
+
+- name: 执行数据库文件
+  shell: mysql -u{{mysql.username}} -p{{mysql.password}} -P{{mysql.port}} -h{{mysql.ip}} --default-character-set=utf8 -e "use {{db_name}}; source {{bcos_sql_path}}/{{item}};"
+  with_items: "{{db_files}}"
+  delegate_to: localhost

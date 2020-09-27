@@ -1,0 +1,277 @@
+##################         Deployment         ##################
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: cas
+  name: cas
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: cas
+  template:
+    metadata:
+      labels:
+        app: cas
+        podevent: cas
+      name: cas
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "{{pinpoint.switch}}"
+        - name: PINPOINT_SERVER_IP
+          value: "{{pinpoint.server_ip}}"
+        - name: PINPOINT_TCP_PORT
+          value: "{{pinpoint.tcp_port}}"
+        - name: PINPOINT_STAT_PORT
+          value: "{{pinpoint.stat_port}}"
+        - name: PINPOINT_SPAN_PORT
+          value: "{{pinpoint.span_port}}"
+        - name: POD_TENANT_NAME
+          value: "{{namespace}}"
+        - name: POD_SERVICE_NAME
+          value: cas
+        - name: JAVA_OPTS
+          value: -Xms1024M -Xmx10240M -XX:PermSize=512M -XX:MaxNewSize=1024M -XX:MaxPermSize=1024M -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.cas}}
+        imagePullPolicy: Always
+        name: cas
+#        livenessProbe:
+#          httpGet:
+#            path: /cas/health
+#            port: 8080
+#            host: localhost
+#          periodSeconds: 10
+#          initialDelaySeconds: 120
+#          failureThreshold: 6
+        resources:
+          limits:
+            cpu: "8"
+            memory: 16Gi
+          requests:
+            cpu: "4"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /usr/local/tomcat/webapps/cas/WEB-INF/cas.properties
+          name: cf-cas-properties
+          subPath: cas.properties
+        - mountPath: /usr/local/tomcat/webapps/cas/WEB-INF/classes/security.xml
+          name: cf-security-xml
+          subPath: security.xml
+      imagePullSecrets:
+      - name: harbor-secret
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: cas.properties
+            path: cas.properties
+          name: cas-properties
+        name: cf-cas-properties
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: security.xml
+            path: security.xml
+          name: security-xml
+        name: cf-security-xml
+---
+##################         Service         ##################
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cas
+    svcevent: cas
+  name: cas
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: cas
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: cas
+  type: ClusterIP
+---
+##################         ingress         ##################
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 3G
+    nginx.ingress.kubernetes.io/proxy-redirect-from: ~*http://([a-z]*):([0-9]*)/(.*)
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+  name: {{ingress_domain}}.cas
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: cas
+          servicePort: 8080
+        path: /cas
+---
+##################         ConfigMap         ##################
+
+apiVersion: v1
+data:
+  cas.properties: |
+    server.prefix=http://127.0.0.1:8080/cas
+    
+    cas.securityContext.serviceProperties.service=${server.prefix}/services/j_acegi_cas_security_check
+    # Names of roles allowed to access the CAS service manager
+    cas.securityContext.serviceProperties.adminRoles=ROLE_ADMIN
+    cas.securityContext.casProcessingFilterEntryPoint.loginUrl=${server.prefix}/login
+    cas.securityContext.ticketValidator.casServerUrlPrefix=${server.prefix}
+    
+    #modify 2012-1-31
+    #cas.themeResolver.defaultThemeName=cas-theme-default
+    #cas.viewResolver.basename=default_views
+    cas.themeResolver.defaultThemeName=cas-theme-bonc
+    cas.viewResolver.basename=bonc_views
+    
+    host.name=cas
+    
+    cas.default.portal=
+    cas.custom.portal=http://portal:8080/portal/
+    cas.custom.skipUrl=/bconsole,/bconsole/,/bconsole/v1/mall/.*
+    
+    database.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+    
+    #add by 2011.10.31
+    db.authentication.sqlWithSHA1=select upper(password) from userinfo  where login_id=?
+    db.authentication.sqlWithMD5=select  upper(password) from userinfo  where login_id=?
+    db.authentication.sql=select  password from userinfo  where login_id=?
+    db.oauth.qqsql=select qqopenid from userinfo  where qqopenid=?
+    db.oauth.qqusernameSql=select login_id from userinfo  where qqopenid=?
+    db.oauth.wxsql=select wxopenid from userinfo  where wxopenid=?
+    db.oauth.wxusernameSql=select login_id from userinfo  where wxopenid=?
+    db.authentication.smsValidateSql=SELECT MOBILE FROM userinfo where LOGIN_ID="?"
+    db.unionId.getUnionId=select unionid from userinfo where login_id=?
+    db.unionId.setUnionId=update userinfo set unionid=? where login_id=?
+    db.authentication.authSql=SELECT IS_NORAML FROM userinfo where LOGIN_ID=?
+    db.authentication.applySql=SELECT IS_APPLY  FROM userinfo where LOGIN_ID=?
+    
+    
+    db.driverClassName=com.bonc.jdbc.MysqlDriver
+    db.url=jdbc:bonc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.portal}}?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF8
+    db.username={{mysql.username}}
+    db.password={{mysql.password}}
+    
+    
+    c3p0.max_size=20
+    c3p0.min_size=5
+    c3p0.initial_pool_size=10
+    c3p0.max_idle_time=60
+    c3p0.acquire_increment=5
+    
+    ########## ticket \u4fdd\u5b58\u5728redis\u4e2d\u65f6\u9700\u8981\u7684\u914d\u7f6e
+    
+    redis_database_num=0
+    hosts=127.0.0.1
+    port=6379
+    max_active=100
+    max_idle=10
+    max_wait=5000
+    st_time=3600000
+    tgt_time=7200000
+    
+    
+    #########  \u767b\u5f55\u65f6\u624b\u673a\u77ed\u4fe1\u9a8c\u8bc1\u7801\u914d\u7f6e
+    smsValidate_service=http://202.101.89.186:9090/WebServiceApp/ws/integralService?wsdl
+    smsValidate_time=1
+    
+    #\u662F\u5426\u5F00\u542F\u4E2A\u6027\u5316\u77ED\u4FE1\u9A8C\u8BC1
+    cas.enableCustomerDefinedRegular=true
+    cas.extraValidateLoginErrorTimes=2
+    
+    #Docker\u73AF\u5883\u5907\u4EFD\u4E3B\u9898\u6587\u4EF6
+    backupOfThemefile=
+    
+    #\u81EA\u5B9A\u4E49\u77ED\u4FE1\u89C4\u5219\u9A8C\u8BC1\u670D\u52A1\u5730\u5740
+    customerSmsRuleService=http://172.16.64.232:8769/authenticationrules/matchRule/
+    timeScope=30
+    
+    cas.qqoauth.appid=101462107
+    cas.qqoauth.appkey=53c828efb566ea43acf56379634b5adc
+    
+    cas.wxoauth.appid=wxbeec6a015d06b852
+    cas.wxoauth.appkey=f78155162956613be7ab29498e453933
+    
+    cas.oauth.redirect_uri=https://platform.cloudiip.com/cas/login
+    
+    
+    
+    #\u8FDE\u7EED\u767B\u5F55\u5931\u8D25\uFF0C\u51BB\u7ED3\u8D26\u53F7
+    cas.allowFrozenAccount=true
+    cas.loginErrorTimes=5
+    cas.loginErrorDuration=5
+    cas.freezenAccountURL=http://security:8080/security/rest/account/block              
+    
+    #\u9ED8\u8BA4\u767B\u5F55\u754C\u9762\u5351\u804C\u4FE1\u606F
+    cas.theme=bonc
+    cas.title=\u5DE5\u4E1A\u4E92\u8054\u7F51\u5F00\u53D1\u5E73\u53F0
+    cas.logo=logo.png
+    cas.enableAuthCode=false
+    cas.enableQuestionValidate=false
+    cas.enableFindPassword=true
+    cas.enableRememberPassword=false
+    cas.enableClientEncryption=false
+    cas.enableSmsAuthCode=false
+    cas.enableMutitimesLogin=false
+    cas.forgetPasswordURL=/security/pwdinfo!forgetPwd.action
+    cas.registerURL=/security/reg!reg.action
+    
+    cas.homeUrl=/bconsole
+    
+kind: ConfigMap
+metadata:
+  name: cas-properties
+  namespace: {{namespace}}
+  
+---
+##################         ConfigMap         ##################
+
+apiVersion: v1
+data:
+  security.xml: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <nodes>
+      <note>
+        <url>.*cas/login.*</url>
+        <pattern>portal|security|cas|dataplatform_3.1|registerproject|bpm|ds|taskmonitorproject_web|vbap3|store|publisher|bconsole|blogic|bdcos|boots|management</pattern>
+      </note>
+      <note>
+        <url>.*cas/logout.*</url>
+        <pattern>portal|security|cas|dataplatform_3.1|registerproject|bpm|ds|taskmonitorproject_web|vbap3|store|publisher|bconsole|blogic|bdcos|boots|management</pattern>
+      </note>
+      <note>
+        <url>.*cas/serviceValidate.*</url>
+        <pattern>registerProject|portal|security|cas|dataplatform_3.1|registerproject|bpm|ds|taskmonitorproject_web|vbap3|store|publisher|bconsole|blogic|bdcos|boots|management</pattern>
+      </note>
+      <note>
+        <url>.*/validate/.*</url>
+        <pattern>&gt;|&lt;|'|"|delete|drop|update|where</pattern>
+        <parmName></parmName>
+      </note>
+      <note>
+        <!--其他访问url-->
+        <url>.*</url>
+        <pattern>&gt;|&lt;|+|(|)|'|"|--|delete|drop|update|create|where</pattern>
+        <parmName></parmName>
+      </note>
+    </nodes>
+
+kind: ConfigMap
+metadata:
+  name: security-xml
+  namespace: {{namespace}}

@@ -1,0 +1,3 @@
+docker_vg:  dockervg
+docker_lib: dockerlib
+storage_driver_lo: "{{storage_driver|default('overlay2')}}"

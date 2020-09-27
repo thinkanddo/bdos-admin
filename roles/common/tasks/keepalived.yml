@@ -1,0 +1,30 @@
+---
+# 修改keepalived配置并重启   是否监听 haproxy 状态
+#  check_flag:  检查haproxy标识位
+#  virtual_ip:  虚拟IP
+#  keep_state:  MASTER, BACKUP
+
+- name: 查询主机网卡
+  shell: ip route | grep {{inventory_hostname}}
+  register: network_info
+
+- name: 打印网络信息
+  debug: msg={{network_info.stdout}}
+
+- name: 设置keepalived 绑定网卡
+  set_fact: interface={{network_info.stdout.split(' ')[2]}}
+
+- name: 设置主机掩码
+  set_fact: net_mask={{network_info.stdout.split(' ')[0].split('/')[1]}}
+
+- name: 安装keepalived
+  yum: name=keepalived state=installed
+
+- name: 复制 keepalived 配置文件
+  template: src=keepalived.conf dest=/etc/keepalived/
+
+- name: 配置haproxy监听脚本
+  copy: src=chk_haproxy.sh  dest=/etc/keepalived/ mode=755
+
+- name: 重启keepalived
+  service: name=keepalived state=restarted enabled=yes

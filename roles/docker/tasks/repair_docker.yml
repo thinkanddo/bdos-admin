@@ -1,0 +1,33 @@
+- name: 生成检测脚本
+  template: src=check_docker.sh dest=/tmp mode=755
+
+- name: 执行检查
+  shell: /tmp/check_docker.sh
+  register: check
+
+- name: 设置检测结果
+  set_fact: pre_check={{check.stdout|from_yaml}}
+
+- name: 检测故障原因
+  debug: msg={{pre_check.flag | ternary(pre_check.memo,'未检测到异常')}}
+
+- include: repair_{{check.name}}.yml
+  when: pre_check.flag
+
+- name: 处理后检查
+  shell: /tmp/check_docker.sh
+  register: check
+
+- name: 设置检测结果
+  set_fact: post_check={{check.stdout|from_yaml}}
+
+- name: 查询服务状态
+  shell: systemctl status docker  -l
+  register: docker_status
+
+- name: 打印服务状态
+  debug: msg={{docker_status.stdout}}
+
+- name: 判断是否修复成功
+  fail: msg="{{pre_check.name == post_check.name | ternary(pre_check.memo~' 修復失敗 ' , pre_check.memo~' 修復成功 但是产生了新问题：' ~ post_check.memo ~ '可以尝试重复执行修复逻辑')}}"
+  when: post_check.flag

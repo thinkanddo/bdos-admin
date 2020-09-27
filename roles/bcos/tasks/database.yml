@@ -1,0 +1,19 @@
+#  bcos_path 模板文件存储路径
+#  **参数规范
+
+- name: 创建临时目录
+  file: path={{bcos_path}} state=directory
+
+- name: 生成sql db文件
+  template: src=db/{{item.key}}/{{item.key}}.sql dest={{bcos_path}}
+  when: install_dbs[item.key]
+  with_dict: "{{mysql.databases}}"
+
+- name: 创建bcos数据库
+  shell: 'mysql -u{{mysql.username}} -p{{mysql.password}} -P{{mysql.port}} -h{{mysql.ip}} --default-character-set=utf8 -e "
+    drop database if exists {{item.value}};
+    create database {{item.value}} default character set utf8 collate utf8_general_ci;
+    use {{item.value}};
+    source {{bcos_path}}/{{item.key}}.sql;"'
+  when: install_dbs[item.key]
+  with_dict: "{{mysql.databases}}"

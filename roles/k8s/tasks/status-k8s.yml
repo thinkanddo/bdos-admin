@@ -1,0 +1,20 @@
+
+- name: 查询 k8s 组件状态
+  shell: source /etc/profile; kubectl get cs
+  ignore_errors: yes
+  register: service_result
+
+- name: 打印组件状态
+  debug: msg={{service_result.stdout}}
+
+- name: 查询 租户 pod状态
+  shell: source /etc/profile; kubectl get po -n {{item}} -owide
+  register: service_result
+  with_items:
+  - kube-system
+  - bcos
+  - bdos-admin
+  ignore_errors: yes
+
+- name: 打印 kube-system pod状态
+  debug: msg={{service_result.results |json_query('[*].stdout_lines')}}

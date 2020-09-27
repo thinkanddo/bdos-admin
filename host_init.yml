@@ -1,0 +1,22 @@
+---
+- hosts: localhost
+  sudo: yes
+  tasks:
+  - name: 查询repo文件
+    args:
+      chdir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+    shell: cat *.repo 
+    register: repo_files
+
+- hosts: default
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: host_init.yml
+      repo_files: "{{hostvars.localhost.repo_files.stdout}}"
+      host_var: "{{boots_roles.default[inventory_hostname]}}"
+      repo_enable: "{{boots_global.SYSTEM_REPO_FLAG|bool}}"
+      system_timezone: "{{boots_global.SYSTEM_TIMEZONE}}"
+    when: host_var.roleStatus == "0"
+  

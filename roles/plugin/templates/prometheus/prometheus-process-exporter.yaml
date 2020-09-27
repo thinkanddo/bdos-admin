@@ -1,0 +1,38 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: process-exporter
+  namespace: kube-system
+  labels:
+    app: process-exporter
+spec:
+  selector:
+    matchLabels:
+      app: process-exporter
+  template:
+    metadata:
+      labels:
+        app: process-exporter
+      annotations:
+        prometheus.io/port: '{{port.process}}'
+        prometheus.io/linux_process: "true"
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: process-exporter
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.k8s.prometheus_process_exporter}}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: {{port.process}}
+          hostPort: {{port.process}}
+        command:
+        - "/bin/process-exporter"
+        args:
+        - '-web.listen-address=:{{port.process}}'
+        - '-config.path=/etc/process-exporter/all.yaml'
+

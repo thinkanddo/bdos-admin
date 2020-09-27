@@ -1,0 +1,56 @@
+---
+
+- import_playbook: install_docker.yml
+
+- import_playbook: install_harbor.yml
+
+- hosts: docker_all
+  sudo: yes
+  vars:
+    harbor_flag: "{{groups.harbor | count > 0}}"
+    harbor:
+      dns: "{{(boots_global.COMPOSE_HARBOR_DNS=='')|ternary(boots_global.COMPOSE_HARBOR_IP,boots_global.COMPOSE_HARBOR_DNS)}}"
+      ip: "{{harbor_flag | ternary(groups.harbor[0],boots_global.COMPOSE_HARBOR_IP)}}"
+      port: "{{boots_global.PORT_HARBOR_HTTPS}}"
+  vars_files:
+  - images.yaml
+  roles:
+  - role: docker
+    vars:
+      role_step: cert_docker.yml
+      harbor:
+        ip: "{{boots_global.COMPOSE_HARBOR_IP}}"
+        dns: "{{boots_global.COMPOSE_HARBOR_DNS}}"
+        port: "{{boots_global.PORT_HARBOR_HTTPS}}"
+      base_images:
+      - "{{images.k8s.pause}}"
+      - "{{images.k8s.kube_proxy}}"
+      - "{{images.k8s.calico_cni}}"
+      - "{{images.k8s.calico_node}}"
+      - "{{images.k8s.calico_pod2daemon_flexvol}}"
+      - "{{images.k8s.calico_flannel}}"
+      - "{{images.k8s.ingress_controller}}"
+      cert_dir: "/etc/docker/certs.d/{{harbor.dns}}:{{harbor.port}}"
+      cert_src: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/server.crt"
+    when: harbor_flag or inventory_hostname in groups.docker
+
+- hosts: devops
+  sudo: yes
+  vars:
+    jenkins_port: "{{boots_global.PORT_JENKINS}}"
+    harbor_flag: "{{groups.harbor | count > 0}}"
+  vars_files:
+  - images.yaml
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: "{{boots_roles.devops[inventory_hostname].devs}}"
+    when: harbor_flag
+  - role: deploy
+    vars:
+      role_step: install_devops.yml
+      sonar_port: "{{boots_global.PORT_SONAR}}"
+      script_list:
+      - bonc-start-devops.sh {{jenkins_port}} {{mount_path}}/devops {{harbor.dns}}:{{harbor.port}}/{{images.devops.devops}} pro {{harbor.dns}} {{groups.harbor[0]}}
+    when: harbor_flag

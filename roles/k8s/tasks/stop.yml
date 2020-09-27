@@ -1,0 +1,3 @@
+
+- name: 停止 kubelet 服务
+  service: name=kubelet state=stopped

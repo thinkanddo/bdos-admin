@@ -1,0 +1,5 @@
+- name: 复制master配置文件
+  unarchive: dest=/ src=/opt/k8s.tar
+
+- name: 添加环境变量
+  blockinfile: path=/etc/profile block="export KUBECONFIG=/etc/kubernetes/admin.conf" marker="#{mark} kubernetes env file"

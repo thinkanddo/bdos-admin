@@ -1,0 +1,14 @@
+# 入参
+#  jenkins_port: jenkins暴露的端口
+#  jenkins_image 启动jenkins的镜像
+# harbor_endpoint harbor endpoint 地址
+# mount_path: 数据的挂载目录
+
+- name: 同步jenkins安装包
+  synchronize: src=devops dest={{mount_path}} dest_port={{ansible_ssh_port}} group=no owner=no rsync_opts='--update'
+
+- name: 启动postgre
+  args:
+    chdir: "{{mount_path}}/devops/devops_scripts"
+  shell: "sh {{item}}"
+  with_items: "{{script_list}}"

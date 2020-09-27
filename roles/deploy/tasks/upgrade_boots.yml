@@ -1,0 +1,32 @@
+- name: 备份boots 应用
+  copy: src={{work_dir}}/boots/boots.jar dest={{back_path}}/boots force=true
+
+- name: 备份boots db
+  shell: mysqldump -u{{mysql_user}} -p{{mysql_password}} -P{{mysql_port}} -h{{mysql_ip}} --default-character-set=utf8 {{mysql_db_boots}} > {{back_path}}/db/boots.sql
+
+- name: 创建临时目录
+  file: path={{bcos_path}} state=directory force=true
+
+- name: 设置应用包安装目录
+  set_fact: pack_path={{work_dir}}/boots
+
+- name: 生成boots.sql
+  template: src=boots_cfg.sql dest={{bcos_path}}
+
+- name: 更新数据库脚本
+  shell: mysql -u{{mysql_user}} -p{{mysql_password}} -P{{mysql_port}} -h{{mysql_ip}} --default-character-set=utf8 -e "use {{mysql_db_boots}}; source {{bcos_path}}/boots_cfg.sql;"
+
+- name: copy boots.jar 应用包
+  copy: src=boots.jar dest={{work_dir}}/boots force=true
+
+- name: 安装boots服务
+  template: src=boots.service dest=/usr/lib/systemd/system/ force=true
+
+- name: 重新加载配置服务配置
+  shell: systemctl daemon-reload
+
+- name: 升级完成
+  shell: mysql -u{{mysql_user}} -p{{mysql_password}} -P{{mysql_port}} -h{{mysql_ip}} --default-character-set=utf8 -e "use {{mysql_db_boots}}; update sys_install_play_exec set status='2',cur_index=1,percent=100 where status='1' and play_code='tools_upgrade_boots'"
+
+- name: 启动boots系统服务
+  service: name=boots state=restarted enabled=yes

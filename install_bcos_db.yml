@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+  sudo: yes
+  roles:
+  - role: bcos
+    vars:
+      role_step: database.yml
+      blogic_flag: "{{boots_global.COMPOSE_BLOGIC_INSTALL_FLAG|bool}}"
+      bcos_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/sql"
+      install_dbs:
+        bdos: "{{boots_global.COMPOSE_BDOS_INSTALL_FLAG|bool}}"
+        bconsole: "{{boots_global.COMPOSE_BCONSOLE_INSTALL_FLAG|bool}}"
+        bpm: "{{boots_global.COMPOSE_BCONSOLE_INSTALL_FLAG|bool}}"
+        portal: "{{boots_global.COMPOSE_BCONSOLE_INSTALL_FLAG|bool}}"
+        blogic: "{{boots_global.COMPOSE_BLOGIC_INSTALL_FLAG|bool}}"
+
+- import_playbook: install_bcos.yml

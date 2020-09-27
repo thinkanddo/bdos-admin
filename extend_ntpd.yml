@@ -1,0 +1,8 @@
+- hosts: default
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: make_ntpd.yml
+      ntp_server: "{{boots_global.SYSTEM_NTP_SERVER_IP}}"
+    when: inventory_hostname != ntp_server and ntp_server != none and ntp_server|trim != ""

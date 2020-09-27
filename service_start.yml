@@ -1,0 +1,65 @@
+- hosts: es_master:es_data
+  sudo: yes
+  roles:
+  - role: es
+    vars:
+      role_step: start.yml
+
+- hosts: ceph_mon
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: start-mon.yml
+
+- hosts: ceph_osd
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: start-osd.yml
+
+- hosts: ceph_msd
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: start-mds.yml
+
+- hosts: ceph_rgw
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: start-rgw.yml
+
+- hosts: docker
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: "{{boots_roles.docker[inventory_hostname].devs}}"
+  - role: docker
+    vars:
+      role_step: start.yml
+      docker_vg:  dockervg
+      store_flag: true
+
+- hosts: harbor
+  sudo: yes
+  roles:
+  - role: harbor
+    vars:
+      role_step: start.yml
+
+- hosts: master:node
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: k8s
+    vars:
+      role_step: start.yml
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+

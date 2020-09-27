@@ -1,0 +1,46 @@
+- name: 安装ceph
+  vars:
+    packages:
+    - ceph-deploy
+    - ceph
+  yum: name={{packages}} state=installed update_cache=yes
+
+- name: 在mon[1]节点上创建集群所需文件（keyring）
+  shell: |
+    ceph-authtool --create-keyring ceph.client.admin.keyring --gen-key -n client.admin --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow *' --cap mgr 'allow *'
+    ceph-authtool --create-keyring ceph.mon.keyring --gen-key -n mon. --cap mon 'allow *'
+    ceph-authtool ceph.mon.keyring --import-keyring ceph.client.admin.keyring
+  args:
+    chdir: "{{ceph_conf_dir}}/"
+
+- name: 初始化配置
+  set_fact:
+    fsid: "{{9999|random|to_uuid}}"
+    mon_initial_members: "{{mon_list | map(attribute='hostname') | list | join(',')}}"
+    mon_host: "{{mon_list | map(attribute='ip') | list | join(',')}}"
+    osd_pool_default_size: "3"
+    rgw_frontends: "civetweb port={{civetweb_port|default('7480')}}"
+
+- name: 获取集群ip信息
+  shell: ip a | grep {{item}} | awk '{print $2}'
+  delegate_to: "{{item}}"
+  with_items: "{{groups.ceph_mon|union(groups.ceph_osd)|union(groups.ceph_mds)|union(groups.ceph_rgw)}}"
+  register: public_network_add
+
+- name: 设置集群网段
+  set_fact: public_network_tmp={{[item|ipv4('network/prefix')]|union(public_network_tmp|default([]))}}
+  with_items: "{{public_network_add.results|json_query('[*].stdout')}}"
+
+- name: 设置变量public_network
+  set_fact: public_network={{public_network_tmp|join(',')}}
+
+- name: 设置osd副本数
+  set_fact: osd_pool_default_size={{(groups.ceph_osd|length|int > 3)|ternary(3,groups.ceph_osd|length)}}
+  when: groups.ceph_osd is defined
+
+- name: 生成ceph相关配置文件
+  template: src=ceph.conf dest={{ceph_conf_dir}}/ceph.conf owner=root group=root mode=0644
+
+- name: fetch controller
+  fetch: src={{ceph_conf_dir}}/{{item}} dest={{ceph_controller_conf_dir}}/{{item}} flat=yes
+  with_items: "{{ceph_conf_list}}"

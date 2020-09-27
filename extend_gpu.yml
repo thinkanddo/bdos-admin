@@ -1,0 +1,17 @@
+---
+- hosts: docker
+  sudo: yes
+  roles:
+  - role: docker
+    vars:
+      role_step: "{{bcos_roles.docker[inventory_hostname].hasGpu|ternary('make_gpu.yml','remove_gpu.yml')}}"
+
+- hosts: master[0]
+  sudo: yes
+  tasks:
+  - name: 修改节点标签
+    shell: |
+      source /etc/profile;
+      kubectl label nodes '{{bcos_roles.docker[item].hostname}}'  has_gpu-;
+      kubectl label nodes '{{bcos_roles.docker[item].hostname}}'  has_gpu={{bcos_roles.docker[inventory_hostname].hasGpu}};
+    with_items: "{{groups.docker}}"

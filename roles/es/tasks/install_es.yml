@@ -1,0 +1,115 @@
+# es_group
+# es_user
+# es_passwd
+# es_node
+# es_home_dir
+# es_vg
+# es_lv
+# es_work_dir
+# 以下是配置文件所需配置(不一定只是给配置文件用)
+# es_data_dir
+# es_log_dir
+# es_node_master
+# es_node_data
+# 
+
+# 1 环境准备
+- name: 创建用户组
+  group: name={{es_group}} state=present
+
+- name: 创建用户
+  user: name={{es_user}} group={{es_group}} password={{es_passwd|password_hash("sha512")}} create_home=yes home={{es_home_dir}}
+
+- name: 配置用户最大文件处理数和内存锁
+  lineinfile: path=/etc/security/limits.conf regexp=^{{item}} line={{item}}
+  with_items:
+  - "{{es_user}} soft nofile 32768"
+  - "{{es_user}} hard nofile 65536"
+  - "{{es_user}} soft memlock unlimited"
+  - "{{es_user}} hard memlock unlimited"
+
+- name: 配置系统所有进程可以打开的文件数量
+  lineinfile: path=/etc/sysctl.conf regexp=^{{item.key}} line={{item.key~' = '~item.value}}
+  with_dict:
+    fs.file-max: 65536
+    vm.max_map_count: 262144
+
+
+- name: 关闭swap并刷新内核配置
+  shell: |
+    sysctl -p
+    swapoff -a
+    sed -i 's/^[^#].*swap.*$/#&/g' /etc/fstab
+
+
+# 2 判断是否启动了es，设置es相关变量
+#- name: 查看es进程id
+#  shell: ps -ef | grep java | grep elasticsearch | grep {{es_work_dir}}/elasticsearch-5.5.3 | grep -v grep | awk '{print $2}'
+#  register: es_pid
+
+- name: 获取本机所有服务
+  service_facts:
+
+- name: 设置elasticsearch服务状态
+  set_fact: es_status={{"elasticsearch.service" in ansible_facts.services and ansible_facts.services["elasticsearch.service"].state=="running"}}
+
+#- name: 获取已安装的es的配置信息
+#  shell: cat {{es_work_dir}}/elasticsearch-5.5.3/config/elasticsearch.yml | grep -E '^node.master|node.data'
+#  register: old_node_role
+#  when: es_status
+
+- name: 更新es配置
+  set_fact:
+    #es_flag: "{{es_pid.stdout_lines|count > 0}}"
+    es_http_enabled: "{{es_node_master}}"
+    es_master_num: "{{es_master_ip_list|length}}"
+    es_discovery_hosts: "{{es_master_ip_list|join(':'~es_tcp_port~'\", \"')}}:{{es_tcp_port}}"
+
+- name: 设置es jvm配置
+  set_fact: es_heap_size="{{2**item}}"
+  when: 2**(item) < ((host_mem|int)/8)
+  with_items: [1,2,3,4]
+
+# 4.1 安了es就 停止服务
+#- name: 停止es服务
+#  shell: |
+#    kill -9 {{es_pid.stdout}}
+#  when: es_flag
+
+- name: 停止 elasticsearch 服务
+  service: name=elasticsearch state=stopped
+  when: es_status
+
+- name: 修改es工作目录用户和用户组
+  file: path={{es_work_dir}} state=directory owner={{es_user}} group={{es_group}}
+
+- name: 解压es安装包
+  unarchive: src=elasticsearch-5.5.3.tar.gz dest={{es_work_dir}} group={{es_group}} owner={{es_user}}
+  when: not es_status
+
+- name: 解压jdk安装包
+  unarchive: src=jdk-8u201-linux-x64.tar.gz dest={{es_work_dir}} group={{es_group}} owner={{es_user}}
+  when: not es_status
+
+- name: 创建es数据目录
+  file: path={{es_data_dir}} state=directory owner={{es_user}} group={{es_group}}
+  when: not es_status
+
+- name: 创建es日志目录
+  file: path={{es_log_dir}} state=directory owner={{es_user}} group={{es_group}}
+  when: not es_status
+
+
+# 5 生成配置文件，启动es服务
+- name: 生成配置文件
+  template: src={{item.src}} dest={{item.dest}}
+  with_items:
+  - {src: "jvm.options", dest: "{{es_work_dir}}/elasticsearch-5.5.3/config/"}
+  - {src: "elasticsearch.yml", dest: "{{es_work_dir}}/elasticsearch-5.5.3/config/"}
+  - {src: "es.service", dest: "/etc/systemd/system/"}
+
+- name: 启动服务
+  shell: |
+    systemctl daemon-reload
+    systemctl enable es.service
+    systemctl start es.service

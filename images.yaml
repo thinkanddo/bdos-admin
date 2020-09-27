@@ -1,0 +1,117 @@
+images:
+
+  k8s:
+
+    etcd: library/etcd:v3.3.12
+    kube_apiserver: library/kube-apiserver:v1.14.3
+    kube_controller_manager: library/kube-controller-manager:v1.14.3
+    kube_proxy: library/kube-proxy:v1.14.3
+    kube_scheduler: library/kube-scheduler:v1.14.3
+    pause: library/pause:3.1
+    coredns: library/coredns:1.3.1
+    calico_cni: library/calico/cni:v3.8.0
+    calico_pod2daemon_flexvol: library/calico/pod2daemon-flexvol:v3.8.0
+    calico_node: library/calico/node:v3.8.0
+    calico_flannel: library/coreos/flannel:v0.11.0
+    ingress_defaultbackend: library/defaultbackend:1.4
+    ingress_controller: library/nginx-ingress-controller:0.24.1
+    cadvisor: library/cadvisor:v0.30.2
+    prometheus: library/prometheus:v02
+    prometheus_blackbox_exporter: library/blackbox-exporter:latest
+    prometheus_kube_state_metrics: library/kube-state-metrics:v1.5.0-alpha.0
+    prometheus_node_exporter: library/node-exporter:v0.16.0
+    prometheus_process_exporter: library/process-exporter:v0.4.0
+    metrics_server_amd64: library/metrics-server-amd64:v0.2.1
+    metrics_server_addon_resizer: library/addon-resizer:1.8.1
+    heapster: library/heapster:test-1.0.7
+    influxdb: library/influxdb:0.7
+    nvidia: library/k8s-device-plugin:1.0.0-beta
+    scheduler_hyperkube: library/hyperkube:v1.14.3
+    scheduler_lvm: library/lvm-scheduler:1.0.0
+    service_dependency: library/service-dependency:v1.0
+    rabbitmq: library/rabbitmq:3.7.17-management
+
+  operator:
+
+    es_operator: library/es-operator:v1.4.2
+    memcached_operator: library/memcached-operator:v1.4.0
+    prometheus_operator: library/prometheus-operator:v1.4.0
+    redis_operator: library/redis-operator:v1.4.0
+    zk_operator: library/zk-operator:v1.4.0
+    ftp_operator: library/ftp-operator:v1.4.0
+    kafka_operator: library/kafka-operator:v1.4.4
+    mysql_operator: library/mysql-operator:v1.4.2
+    storm_operator: library/storm-operator:v1.4.2
+    lvm_operator: library/lvm-operator:v1.4.0
+
+  components:
+
+    codis_image: library/codis-image:latest
+    redis_exporter: library/redis-exporter:latest
+    elasticsearch_2: library/elasticsearch:v2.4.5
+    elasticsearch_exporter: library/elasticsearch_exporter:1.0.4
+    elasticsearch_5: library/elasticsearch:v5.5.2_no_xpack
+    kibana: library/kibana:v5.5.2_no_xpack
+    ftp_2.4: library/ftp-2.4:latest
+    kafka_alp_0.9.0: library/kafka-alp-0.9.0:external-access
+    kafka_alp_0.10.0: library/kafka-alp-0.10.0:external-access
+    kafka_alp_0.10.1: library/kafka-alp-0.10.1:external-access
+    kafka_alp_1.0.0: library/kafka-alp-1.0.0:external-access
+    memcached: library/memcached:1.5.9
+    memcached_exporter: library/memcached-exporter:v0.4.1
+    repcached: library/repcached:1.4.13
+    bonc_mysql56: library/bonc-mysql56:latest
+    mysqld_exporter: library/mysqld-exporter:latest
+    bdos_mysql_backup_24: library/bdos_mysql_backup:1.0.5_v24
+    bonc_mysql57: library/bonc-mysql57:latest
+    bonc_mysql80: library/bonc-mysql80:latest
+    bdos_mysql_backup_80: library/bdos_mysql_backup:1.0.5_v80
+    prometheus: library/prometheus:v02
+    bonc_redis: library/bonc-redis:3.2.11
+    storm_alp_0.10.0: library/storm-alp-0.10.0:latest
+    storm_exporter: library/storm-exporter:latest
+    storm_alp_1.0.2: library/storm-alp-1.0.2:latest
+    storm_alp_1.2.2: library/storm-alp-1.2.2:latest
+    bonc_zookeeper: library/bonc-zookeeper:3.4.12
+    zookeeper_exporter: library/zookeeper_exporter:latest
+    phpmyadmin: library/phpmyadmin:latest
+    eureka: library/eureka:latest
+    configserver: library/configserver:latest
+    rabbitmq: library/rabbitmq:latest
+    zuul: library/zuul:latest
+    bonc_mysql_5.6: library/bonc-mysql:5.6.44
+    bonc_mysql_5.7: library/bonc-mysql:5.7.26
+    bonc_mysql_8.0: library/bonc-mysql:8.0.16
+    postgresql: library/postgresql:10.5.1
+    prometheus_postgres_exporter: library/prometheus-postgres-exporter:latest
+
+  base:
+
+    centos: library/centos:7.2.1511
+    jdk_8: library/jdk:8
+    tomcat_8_38:  library/tomcat:8.5.38
+    python_3: library/python:3.6.4
+    python_2: library/python:2.7.14
+    nodejs_10: library/node:10.15
+    nodejs_9: library/node:9.11
+    nodejs_8: library/node:8.11
+
+  devops:
+
+    vsftpd: library/vsftpd:latest
+    postgres: library/postgres:10.4
+    sonarqube: library/sonarqube:7.1
+    devops: library/devops:v1
+
+  bcos:
+
+    logkit: library/logkit:v3
+    bdos: library/bcosdev/bdos:v1.4.4
+    bdocs: library/bdocs:v0.1.0
+    bpm: library/bpm:v2.4.0.4
+    blogic: library/bcostest/blogic:1.1.0.12_19
+    pinpoint: library/pinpoint:v1.7.4
+    portal: library/portal:v1.4.2
+    cas: library/cas:v1.4.2
+    security: library/security:v1.4.2
+    bconsole: library/bcosdev/bconsole:v1.4.7.1

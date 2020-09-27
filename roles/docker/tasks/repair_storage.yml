@@ -1,0 +1,18 @@
+- name: 获取docker配置
+  shell: cat /etc/docker/daemon.json
+  register: daemon
+
+- name: 设置docker配置文件
+  set_fact: docker_cfg={{daemon.stdout | from_json}}
+
+- name: 设置挂载路径
+  set_fact: mount_path={{docker_cfg['data-root']}}
+
+- include: reset_docker.yml
+
+- include: make_{{storage_driver_lo}}.yml
+
+- name: 删除docker的数据目录
+  shell: rm -rf {{mount_path}}/* || true
+
+- include: start.yml

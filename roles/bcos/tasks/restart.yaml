@@ -1,0 +1,8 @@
+- name: 生成yaml文件
+  template: src=bcos/{{service_name}}.yaml dest={{bcos_path}} mode=0644
+
+- name: 停止组件
+  shell: source /etc/profile; kubectl delete -f {{bcos_path}}/{{service_name}}.yaml || true
+
+- name: 启动组件
+  shell: source /etc/profile; kubectl create -f {{bcos_path}}/{{service_name}}.yaml || true

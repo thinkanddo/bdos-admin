@@ -1,0 +1,24 @@
+- name: 备份证书文件
+  shell: cp  "{{k8s_path}}/kubelet.conf" "{{k8s_path}}_bak/kubelet.conf.bak"
+
+- name: copy生成的文件到其他的master机器上
+  copy: src="{{k8s_path}}/kubelet.conf" dest="{{k8s_path}}" mode=0644
+
+- name: 修改bootstrap-kubelet.conf文件
+  lineinfile:
+    path: "{{k8s_path}}/bootstrap-kubelet.conf"
+    regexp: '^(.*)token:(.*)$'
+    line: '    token: {{master_token}}'
+
+- name: 查找需要删除的kubelet文件
+  find:
+      paths: /var/lib/kubelet/pki
+      patterns: kube*
+  register: files_to_delete
+
+- name: 删除kubelet的客户端的证书文件
+  file: path="{{item.path}}" state=absent
+  with_items: "{{files_to_delete.files}}"
+
+- name: 重启kubelet
+  service: name=kubelet state=restarted

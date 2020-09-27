@@ -1,0 +1,52 @@
+---
+- hosts: ceph_osd[0]
+  sudo: yes
+  vars:
+    ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+    ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+    ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+  roles:
+  - role: ceph
+    vars:
+      role_step: change_config.yml
+      all_osd_ip_num: "{{(groups.ceph_osd_all|length|int > 3)|ternary(3,groups.ceph_osd_all|length)}}"
+      extend_flag: True
+    when: groups.ceph_mon_all is defined
+
+- hosts: ceph_osd
+  sudo: yes
+  vars:
+      alloc_dev: "{{boots_roles.ceph_osd[inventory_hostname].devs}}"
+  pre_tasks:
+  # 检查磁盘是否是gpt格式的
+  - name: 检查磁盘是否能装osd
+    fail: msg="osd的磁盘分区表格式不是gpt"
+    when: item.partType != "gpt"
+    with_items: "{{boots_roles.ceph_osd[inventory_hostname].devs}}"
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+  - role: ceph
+    vars:
+      role_step: add_osds.yml
+      ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+      ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+      ceph_work_dir: "/var/lib/ceph"
+      ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+      osd_data_list: "{{alloc_dev|json_query('[?name==`osddata`].{\"devName\": devName, \"devParent\": devParent}')|list}}"
+      osd_journal_list: "{{alloc_dev|json_query('[?name==`osdjournel`].{\"devName\": devName, \"devParent\": devParent}')|list}}"
+  post_tasks:
+  - name: 保存ceph_osd角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.ceph_osd[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+# change all role conf
+- hosts: ceph_osd_all:ceph_mon_all:!ceph_osd
+  sudo: yes
+  tasks:
+  - name: 更新ceph集群的配置文件
+    copy: src={{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/ceph.conf dest={{boots_global.COMPOSE_CEPH_DIR}}/ceph.conf mode=0644
+    when: groups.ceph_mon_all is defined
+

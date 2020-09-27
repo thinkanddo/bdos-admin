@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: logkit
+    svcevent: logkit
+  name: logkit
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: logkit
+    port: 8100
+    protocol: TCP
+    targetPort: 8100
+  - name: tomcat
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    k8s-app: logkit
+  type: ClusterIP
+
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    k8s-app: logkit
+  name: logkit
+  namespace: {{namespace}}
+spec:
+  selector:
+    matchLabels:
+      k8s-app: logkit
+  template:
+    metadata:
+      labels:
+        k8s-app: logkit
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: logkit
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.logkit}}
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 2Gi
+        volumeMounts:
+        - mountPath: /usr/local/blogkit/logkit.conf
+          name: logkit
+          subPath: logkit.conf
+        - mountPath: /var/log
+          name: logs
+        - mountPath: /usr/local/blogkit/.logkitconfs
+          name: logkitconfs
+        - mountPath: /bcos_mnt
+          name: bcos
+      imagePullSecrets:
+      - name: harbor-secret
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node.cloudprovider.kubernetes.io/uninitialized
+        value: "true"
+      volumes:
+      - hostPath:
+          path: /var/log
+          type: DirectoryOrCreate
+        name: logs
+      - hostPath:
+          path: "{{conf_path}}"
+          type: DirectoryOrCreate
+        name: logkitconfs
+      - hostPath:
+          path: /bcos_mnt
+          type: DirectoryOrCreate
+        name: bcos
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: logkit.conf
+            path: logkit.conf
+          name: logkit
+        name: logkit
+---
+##################         ConfigMap         ##################
+apiVersion: v1
+data:
+  logkit.conf: |
+    {
+        "static_root_path":"/usr/local/blogkit/public",
+        "max_procs": 0,
+        "debug_level": 0,
+        "bind_port":"8100",
+        "blogic_url": "blogic:8080/blogic",
+        "rest_dir":"/usr/local/blogkit/.logkitconfs",
+        "confs_path": ["confs*"],
+            "tenant": "admin",
+            "log": "/usr/local/blogkit/logs/logkit.log",
+            "clean_self_log":true,           
+            "clean_self_dir":"/usr/local/blogkit/logs",        
+            "clean_self_pattern":"logkit.log-*",
+            "clean_self_cnt":5
+    }
+kind: ConfigMap
+metadata:
+  name: logkit
+  namespace: {{namespace}}

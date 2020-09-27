@@ -1,0 +1,175 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: kafka-operator
+  labels:
+    app: kafka-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-operator
+  template:
+    metadata:
+      labels:
+        app: kafka-operator
+    spec:
+        serviceAccountName: kafka-operator
+        containers:
+        - name: kafka-operator
+          image: {{harbor.dns}}:{{harbor.port}}/{{images.operator.kafka_operator}}
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 8080
+          volumeMounts:
+          - mountPath: /opt/operator-log
+            name: kafka-operator-bdos-log
+        volumes:
+        - flexVolume:
+            driver: sysoperator.pl/lvm
+            fsType: ext4
+            options:
+              mountoptions: relatime,nobarrier
+              size: 10Gi
+              volumeID: kafka-operator-bdos-log
+              volumegroup: operatorvg
+          name: kafka-operator-bdos-log
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-operator
+spec:
+  ports:
+  - name: kafka-operator
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: kafka-operator
+  type: NodePort
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kafka-operator
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: kafka-operator
+rules:
+- apiGroups:
+  - kafka.bonc.com
+  resources:
+  - kafkaclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: kafka-operator
+subjects:
+- kind: ServiceAccount
+  name: kafka-operator
+  namespace: {{operator_ns}}
+roleRef:
+  kind: ClusterRole
+  name: kafka-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: kafka-operator
+rules:
+- apiGroups:
+  - kafka.bonc.com
+  resources:
+  - kafkaclusters
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - namespaces
+  verbs:
+  - "*"
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups:
+  - "*"
+  resources:
+  - secrets
+  verbs:
+  - "*"
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: kafka-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kafka-operator
+subjects:
+- kind: ServiceAccount
+  name: kafka-operator
+  namespace: {{operator_ns}}

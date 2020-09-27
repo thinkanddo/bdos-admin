@@ -1,0 +1,51 @@
+---
+### 主要任务： 在控制机以容器的方式 安装包jenkins  和  ftp
+
+#  ftp 端口段分配方式：
+#  21020-21x19   x=[1-9]  如下分配方式
+#  21020,21021,21022-21119
+#  21120,21121,21122-21219
+
+- hosts: devops
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: "{{boots_roles.devops[inventory_hostname].devs}}"
+  - role: deploy
+    vars:
+      role_step: install_devops.yml
+      jenkins_port: "{{boots_global.PORT_JENKINS}}"
+      sonar_port: "{{boots_global.PORT_SONAR}}"
+      sonar_endpoint: http://{{inventory_hostname}}:{{sonar_port}}
+      script_list:
+      - bonc-start-postgresql.sh {{mount_path}}/devops {{harbor.dns}}:{{harbor.port}}/{{images.devops.postgres}} pro
+      - bonc-start-devops.sh {{jenkins_port}} {{mount_path}}/devops {{harbor.dns}}:{{harbor.port}}/{{images.devops.devops}} pro {{harbor.dns}} {{harbor.ip}}
+      - bonc-start-sonar.sh {{sonar_port}} {{mount_path}}/devops {{harbor.dns}}:{{harbor.port}}/{{images.devops.sonarqube}} pro
+  - role: deploy
+    vars:
+      role_step: install_ftp.yml
+      data_port: "{{boots_global.PORT_FTP_DATA|default(21020)}}"
+      control_port: "{{boots_global.PORT_FTP_CONTROL|default(21021)}}"
+      passive_min_port:  "{{boots_global.PORT_FTP_MIN|default(21022)}}"
+      passive_max_port:  "{{boots_global.PORT_FTP_MAX|default(21119)}}"
+      ftp_user:  "{{boots_global.COMPOSE_FTP_USERNAME|default('bcos_ftp')}}"
+      ftp_password:  "{{boots_global.COMPOSE_FTP_PASSWORD|default('bcos.123')}}"
+      ftp_name:  bcos_ftp
+      ftp_flag: "{{boots_global.COMPOSE_FTP_INSTALL_FLAG|default(true)}}"
+      ftp_ip: "{{inventory_hostname}}"
+    when: boots_global.COMPOSE_FTP_INSTALL_FLAG|default(true)
+  post_tasks:
+  - name: 保存devops状态
+    vars:
+      ansible_roles: {id: "{{boots_roles.devops[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+  - name: 保存devops IP
+    vars:
+      ansible_global:
+        COMPOSE_JENKINS_IP: "{{inventory_hostname}}"
+        COMPOSE_FTP_IP: "{{(boots_global.COMPOSE_FTP_INSTALL_FLAG|bool)|ternary(inventory_hostname,boots_global.COMPOSE_FTP_IP)}}"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"

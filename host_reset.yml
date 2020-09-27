@@ -1,0 +1,11 @@
+
+- import_playbook: host_clean.yml
+
+- hosts: localhost
+  tasks:
+  - name: 保存k8s安装信息
+    vars:
+      ansible_global:
+        COMPOSE_K8S_INSTALL_FLAG: "false"
+        SYSTEM_INSTALL_FLAG: "false"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"

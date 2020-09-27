@@ -1,0 +1,119 @@
+#/c ======================== Elasticsearch Configuration =========================
+#
+# NOTE: Elasticsearch comes with reasonable defaults for most settings.
+#       Before you set out to tweak and tune the configuration, make sure you
+#       understand what are you trying to accomplish and the consequences.
+#
+# The primary way of configuring a node is via this file. This template lists
+# the most important settings you may want to configure for a production cluster.
+#
+# Please consult the documentation for further information on configuration options:
+# https://www.elastic.co/guide/en/elasticsearch/reference/index.html
+#
+# ---------------------------------- Cluster -----------------------------------
+#
+# Use a descriptive name for your cluster:
+#
+cluster.name: {{es_cluster_name}}
+#
+# ------------------------------------ Node ------------------------------------
+#
+# Use a descriptive name for the node:
+#
+node.name: {{es_node_name}}
+#
+# Add custom attributes to the node:
+#
+#node.attr.rack: r1
+#
+# ----------------------------------- Paths ------------------------------------
+#
+# Path to directory where to store the data (separate multiple locations by comma):
+#
+path.data: {{es_data_dir}}
+#
+# Path to log files:
+#
+path.logs: {{es_log_dir}}
+#
+# ----------------------------------- Memory -----------------------------------
+#
+# Lock the memory on startup:
+#
+#bootstrap.memory_lock: true
+#
+# Make sure that the heap size is set to about half the memory available
+# on the system and that the owner of the process is allowed to use this
+# limit.
+#
+# Elasticsearch performs poorly when the system is swapping the memory.
+#
+# ---------------------------------- Network -----------------------------------
+#
+# Set the bind address to a specific IP (IPv4 or IPv6):
+#
+network.host: {{es_network_host}}
+#
+# Set a custom port for HTTP:
+#
+{% if es_http_enabled|bool %}
+http.port: {{es_http_port}}
+{% endif %}
+transport.tcp.port: {{es_tcp_port}} 
+#
+# For more information, consult the network module documentation.
+#
+# --------------------------------- Discovery ----------------------------------
+#
+# Pass an initial list of hosts to perform discovery when new node is started:
+# The default list of hosts is ["127.0.0.1", "[::1]"]
+#
+discovery.zen.ping.unicast.hosts: ["{{es_discovery_hosts}}"]
+#
+# Prevent the "split brain" by configuring the majority of nodes (total number of master-eligible nodes / 2 + 1):
+#
+discovery.zen.minimum_master_nodes: {{(es_master_num|int)//2+1}}
+#
+# For more information, consult the zen discovery module documentation.
+#
+# ---------------------------------- Gateway -----------------------------------
+#
+# Block initial recovery after a full cluster restart until N nodes are started:
+#
+#gateway.recover_after_nodes: 2
+
+node.master: {{es_node_master}}
+node.data: {{es_node_data}}
+node.ingest: {{es_node_ingest}}
+http.enabled: {{es_http_enabled|lower}}
+#
+# For more information, consult the gateway module documentation.
+#
+# ---------------------------------- Various -----------------------------------
+#
+# Require explicit names when deleting indices:
+#
+#
+#
+#
+#
+#action.destructive_requires_name: true
+
+
+# Search pool:
+#  thread_pool.search.size: 5
+#  thread_pool.search.queue_size: 100
+# 这个参数慎用！强制修改cpu核数，以突破写线程数限制
+# processors: 16
+# Bulk pool:
+#  thread_pool.bulk.size: 16
+#  thread_pool.bulk.queue_size: 1024
+# Index pool:
+#  thread_pool.index.size: 16
+#  thread_pool.index.queue_size: 300
+#  
+#  indices.fielddata.cache.size: 40%
+#  
+#  discovery.zen.fd.ping_timeout: 120s
+#  discovery.zen.fd.ping_retries: 6
+#  discovery.zen.fd.ping_interval: 30s

@@ -1,0 +1,43 @@
+---
+- hosts: default
+  sudo: yes
+  pre_tasks:
+  - name: 设置异常信息集合
+    set_fact: error_msg={{[]}}
+  roles:
+  - role: common
+    vars:
+      role_step: host_check.yml
+      check_dev_size: 300
+      origin_dev: "{{boots_roles.default[inventory_hostname].devs}}"
+      controller_ip: "{{boots_global.SYSTEM_CONTROL_IP}}"
+      work_dir: "{{boots_global.SYSTEM_WORK_DIR}}"
+  post_tasks:
+  - name: 获取主机当前的hostname
+    shell: hostname
+    register: real_hostname
+  - name: 保存主机检查信息
+    set_fact:
+      ansible_roles:
+        id:
+          ip: "{{inventory_hostname}}"
+          code: "{{boots_global.SYSTEM_ENV_CODE}}"
+        status: "{{(error_msg|count>0)|ternary('1','2')}}"
+        hostname: "{{boots_global.SYSTEM_HOSTNAME_FLAG|bool|ternary(inventory_hostname|replace('.','-',3),real_hostname.stdout)}}"
+        cpu: '{{cpu_cores_num.stdout}}'
+        memory: '{{mem_num.stdout}}'
+        kernel: "{{core_version.stdout}}"
+        os: "{{os_name.stdout|replace('Enterprise','')|replace('Linux','')|replace('Server','')|replace('  ',' ')}}"
+        osVersion: "{{os_version.stdout}}"
+        devs: "{{dev_info}}"
+
+- hosts: default
+  tasks:
+  - name: 提交后台数据
+    shell: "curl -X POST {{boots_global.SYSTEM_CALLBACK_URL}}/host?host={{ansible_roles|to_json|urlencode}}"
+  - name: 打印异常信息
+    debug: msg={{item}}BEGIN{{inventory_hostname}}END{{item}}
+    with_items: "{{error_msg}}"
+  - name: 判断是否有异常
+    fail: msg="主机校验失败"
+    when: error_msg|count>0

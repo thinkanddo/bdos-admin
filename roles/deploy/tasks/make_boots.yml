@@ -1,0 +1,32 @@
+- name: 更新boots 代码
+  args:
+    chdir: "{{boots.path}}"
+  shell: git tag -l | xargs git tag -d && git pull && git reset --hard master
+
+- name: 设置boots当前的hash
+  args:
+    chdir: "{{boots.path}}"
+  shell: git reflog | head -1 | awk '{ print $1}'
+  register: boots_hash
+
+- name: 回退boots版本tag
+  args:
+    chdir: "{{boots.path}}"
+  shell: git reset --hard {{version.boots}}
+  when: bcos_tag != latest_tag
+
+- name: 制作boots包
+  args:
+    chdir: "{{boots.path}}"
+  shell: mvn clean package
+
+- name: 转移boots 包
+  args:
+    chdir: "{{boots.path}}"
+  shell: mkdir -p {{boots.repo}} ; mv {{boots.package}} {{boots.repo}}
+
+- name: 恢复boots 最新版本
+  args:
+    chdir: "{{boots.path}}"
+  shell: git reset --hard {{boots_hash.stdout}}
+  when: bcos_tag != latest_tag

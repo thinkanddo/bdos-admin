@@ -1,0 +1,22 @@
+---
+- hosts: master
+  sudo: yes
+  serial: 1
+  vars_files:
+    - images.yaml
+  pre_tasks:
+    - name: 引入应用版本
+      include_vars: file=version name=version
+  roles:
+  - role: k8s
+    vars:
+      role_step: upgrade_master.yml
+      secure_port_ha_tmp: "{{(boots_global.PORT_K8S_SECURE_HA=='')|ternary(boots_global.PORT_K8S_SECURE|int+1 ,boots_global.PORT_K8S_SECURE_HA)}}"
+      secure_port_ha: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP != '')|ternary(secure_port_ha_tmp,boots_global.PORT_K8S_SECURE)}}"
+      virtual_ip: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(groups.master[0], boots_global.COMPOSE_K8S_VIRTUAL_IP)}}"
+      secure_port: "{{boots_global.PORT_K8S_SECURE}}"
+      insecure_port: "{{boots_global.PORT_K8S_INSECURE}}"
+      service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+      pod_subnet: "{{boots_global.COMPOSE_K8S_POD_SUBNET}}"
+      service_node_port_range: "{{boots_global.PORT_K8S_SERVICE_NODE_MIN}}-{{boots_global.PORT_K8S_SERVICE_NODE_MAX}}"
+    when: (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)

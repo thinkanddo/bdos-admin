@@ -1,0 +1,15 @@
+- name: 停止harbor 服务
+  args:
+    chdir: "{{harbor_work_dir}}/harbor"
+  shell: source /etc/profile; docker-compose -f docker-compose.chartmuseum.yml -f docker-compose.clair.yml -f docker-compose.notary.yml -f docker-compose.yml stop
+
+- name: 等待 10s harbor 停止成功
+  wait_for: timeout=10
+
+- name: 清理harbor残留数据
+  shell: docker run -i --name gc --rm --volumes-from registry goharbor/registry-photon:v2.6.2-v1.6.1 garbage-collect /etc/registry/config.yml
+
+- name: 启动harbor 服务
+  args:
+    chdir: "{{harbor_work_dir}}/harbor"
+  shell: source /etc/profile; docker-compose -f docker-compose.chartmuseum.yml -f docker-compose.clair.yml -f docker-compose.notary.yml -f docker-compose.yml start

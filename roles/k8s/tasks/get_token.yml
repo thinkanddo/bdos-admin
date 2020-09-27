@@ -1,0 +1,23 @@
+---
+# 获取token文件
+- name: 从token列表获取token
+  shell: kubeadm token list | grep system:boots | sort -k 3 -n | awk '{print $1}'
+  register: token_string
+
+- name: 如果token失效重新生成token
+  shell: kubeadm token create --groups system:bootstrappers:kubeadm:default-node-token
+  when: token_string.stdout_lines|count==0
+
+- name: 获取token生成token文件
+  shell: kubeadm token list | grep system:boots | sort -k 3 -n | awk '{print $1}'
+  register: token_string
+
+- name: 设置master token
+  set_fact: master_token={{token_string.stdout_lines[0]}}
+
+- name: 重新生成 certificate-key
+  shell: kubeadm init phase upload-certs --config /opt/config.yaml --experimental-upload-certs | tail -n 1 || true
+  register: certificate
+
+- name: 设置 certificate
+  set_fact: certificate_key={{certificate.stdout}}

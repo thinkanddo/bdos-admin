@@ -1,0 +1,104 @@
+---
+- hosts: prometheus
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: "{{boots_roles.prometheus[inventory_hostname].devs}}"
+
+- hosts: master[0]
+  sudo: yes
+  vars:
+    data_path: "{{boots_global.SYSTEM_WORK_DIR}}/data"
+    yaml_path: "{{data_path}}/yaml"
+    back_path: "{{data_path}}/backup"
+  vars_files:
+  - images.yaml
+  roles:
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: kube-system
+      check_type: ds
+      pod_subnet: "{{boots_global.COMPOSE_K8S_POD_SUBNET}}"
+      plugin_name: "{{boots_global.COMPOSE_NETWORK_PLUGIN}}"
+      yaml_install:
+      - calico.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: ingress-nginx
+      plugin_name: ingress
+      check_type: ds
+      yaml_install:
+      - mandatory.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: kube-system
+      plugin_name: metrics-server
+      check_type: deploy
+      yaml_install:
+      - auth-delegator.yaml
+      - auth-reader.yaml
+      - metrics-apiservice.yaml
+      - metrics-server-deployment.yaml
+      - metrics-server-service.yaml
+      - resource-reader.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: cadvisor
+      plugin_name: cadvisor
+      check_type: ds
+      yaml_install:
+      - namespace.yaml
+      - cluserrole.yaml
+      - serviceaccount.yaml
+      - cluserrolebinding.yaml
+      - podsecuritypolicy.yaml
+      - daemonset.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: kube-system
+      plugin_name: nvidia
+      check_type: ds
+      yaml_install:
+      - nvidia-device-plugin.yaml
+      yaml_update: []
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      namespace: kube-system
+      plugin_name: prometheus
+      check_type: deploy
+      port:
+        node: "{{boots_global.PORT_NODE_EXPORT}}"
+        process: "{{boots_global.PORT_PROCESS_EXPORT}}"
+        prometheus: "{{(boots_global.PORT_K8S_SERVICE_NODE_MIN|int)+10}}"
+      host_path: "{{hostvars[groups.prometheus[0]].mount_path}}"
+      node_name: "{{boots_roles.prometheus[groups.prometheus[0]].hostname}}"
+      node_exclude: []
+      yaml_install:
+      - prometheus-kube-state-metrics.yaml
+      - prometheus-blackbox-exporter.yaml
+      - prometheus-node-exporter.yaml
+      - prometheus-process-exporter.yaml
+      - prometheus-configmap.yaml
+      - prometheus.yaml
+      yaml_update:
+      - prometheus-configmap.yaml
+    when: groups.prometheus | count > 0
+
+- hosts: prometheus
+  tasks:
+  - name: 保存prometheus角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.prometheus[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"

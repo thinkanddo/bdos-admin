@@ -1,0 +1,6 @@
+- name: 获取hostname
+  shell: hostname
+  register: hostname
+
+- name: 启动 mon 服务
+  service: name=ceph-mon@{{hostname.stdout}} state=started enabled=yes

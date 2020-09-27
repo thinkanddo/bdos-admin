@@ -1,0 +1,12 @@
+- name: 安装operator依赖
+  vars:
+    packages:
+    - lvm2
+    - lvm2-libs
+  yum: name={{packages}} state=installed
+
+- name: 创建目录
+  file: path=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/sysoperator.pl~lvm/ state=directory
+
+- name: 分发文件
+  copy: src=lvm dest=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/sysoperator.pl~lvm/ mode=0755

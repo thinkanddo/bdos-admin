@@ -1,0 +1,141 @@
+##################         Deployment         ##################
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: portal
+  name: portal
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: portal
+  template:
+    metadata:
+      labels:
+        app: portal
+        podevent: portal
+      name: portal
+      namespace: {{namespace}}
+    spec:
+      containers:
+      - env:
+        - name: PINPOINT_SWITCH
+          value: "{{pinpoint.switch}}"
+        - name: PINPOINT_SERVER_IP
+          value: "{{pinpoint.server_ip}}"
+        - name: PINPOINT_TCP_PORT
+          value: "{{pinpoint.tcp_port}}"
+        - name: PINPOINT_STAT_PORT
+          value: "{{pinpoint.stat_port}}"
+        - name: PINPOINT_SPAN_PORT
+          value: "{{pinpoint.span_port}}"
+        - name: POD_TENANT_NAME
+          value: "{{namespace}}"
+        - name: POD_SERVICE_NAME
+          value: portal
+        - name: JAVA_OPTS
+          value: -Xms1024M -Xmx7144M -XX:PermSize=512M -XX:MaxNewSize=1024M -XX:MaxPermSize=1024M -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.portal}}
+        imagePullPolicy: Always
+        name: portal
+        resources:
+          limits:
+            cpu: "8"
+            memory: 8Gi
+          requests:
+            cpu: "4"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /usr/local/tomcat/webapps/portal/WEB-INF/classes/cfg.db.deploy.properties
+          name: cf-portal-cfg
+          subPath: cfg.db.deploy.properties
+      imagePullSecrets:
+      - name: harbor-secret
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: cfg.db.deploy.properties
+            path: cfg.db.deploy.properties
+          name: portal-cfg
+        name: cf-portal-cfg
+---
+##################         Service         ##################
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: portal
+    svcevent: portal
+  name: portal
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: portal
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: portal
+  type: ClusterIP
+---
+##################         ingress         ##################
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 3G
+    nginx.ingress.kubernetes.io/proxy-redirect-from: ~*http://([a-z]*):([0-9]*)/(.*)
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+    nginx.ingress.kubernetes.io/app-root: /portal
+  name: {{ingress_domain}}.portal
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: portal
+          servicePort: 8080
+        path: /
+---
+##################         ConfigMap         ##################
+
+apiVersion: v1
+data:
+  cfg.db.deploy.properties: |-
+    #######################datasource config################################
+    #for mysql
+    database.type=mysql
+    database.driver=com.bonc.jdbc.MysqlDriver
+    database.url=jdbc:bonc:mysql://{{mysql.ip}}:{{mysql.port}}/{{mysql.databases.portal}}?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF8
+    database.username={{mysql.username}}
+    database.password={{mysql.password}}
+    
+    
+    database.initialPoolSize=3
+    database.acquireIncrement=3
+    database.minPoolSize=3
+    database.maxPoolSize=20
+    database.maxIdleTime=120
+    database.encryptType=0
+    
+    #######################hibernate config################################
+    
+    hibernate.dialect=org.hibernate.dialect.MySQL5Dialect
+    hibernate.show_sql=true
+    hibernate.hbm2ddl.auto=update
+    hibernate.jdbc.batch_size=20
+    hibernate.default_schema={{mysql.databases.portal}}
+    
+kind: ConfigMap
+metadata:
+  name: portal-cfg
+  namespace: {{namespace}}
+

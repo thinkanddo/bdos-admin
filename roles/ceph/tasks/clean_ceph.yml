@@ -1,0 +1,46 @@
+- name: 清理控制机配置
+  shell: rm -rf {{ceph_controller_conf_dir}}/ceph*
+
+- name: 查看是否装了ceph
+  shell: yum list installed | grep -w ceph 2>/dev/null | awk '{print $1}' || true
+  register: ceph_install_flag
+
+- name: 获取cephfs挂载
+  shell: |
+    cat /proc/mounts | awk '{if($3=="ceph"){print $2}}' || true
+  register: ceph_mount_list
+
+- name: 清理挂载
+  shell: umount -l {{item}} || true
+  with_items: "{{ceph_mount_list.stdout_lines}}"
+
+- name: 清理ceph rbd
+  shell: |
+    for i in $(rbd showmapped 2>/dev/null | sed '1d' | awk '{print $5}')
+    do
+      umount $i 2>/dev/null || true
+      rbd unmap $i
+    done
+  when: "'ceph-common-10.2.9-0.el7.x86_64' in ceph_install_flag.stdout_lines"
+
+- name: 清理ceph相关服务
+  shell: |
+    for i in $(systemctl list-units --type=service | grep ceph | awk '{print $1; print $2}' | grep service)
+    do
+      systemctl stop $i
+      systemctl disable $i
+    done
+    systemctl reset-failed
+  ignore_errors: true
+
+- name: 清理osd数据
+  shell: |
+    umount /var/lib/ceph/osd/*
+    umount /var/lib/ceph/tmp/*
+    rm -rf /etc/ceph/ /var/lib/ceph/ /var/run/ceph/
+  ignore_errors: true
+
+
+- name: 卸载ceph相关rpm
+  yum: name=ceph* state=absent
+  when: ceph_install_flag.stdout_lines|count > 0

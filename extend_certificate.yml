@@ -1,0 +1,44 @@
+---
+- hosts: master[0]
+  sudo: yes
+  pre_tasks:
+  - name: 获取k8s 版本
+    shell: kubelet --version | awk '{print $2}' | sed 's/^.//'
+    register: k8s_version
+  - name: 设置变量
+    set_fact:
+      k8s_version: "{{k8s_version.stdout}}"
+  roles:
+  - role: k8s
+    vars:
+      k8s_path: "/etc/kubernetes"
+      bindPort: "{{boots_global.PORT_K8S_SECURE}}"
+      role_step: extend_crt_master.yml
+    when: (k8s_version is version("1.9",'<'))
+    
+# 恢复其他的master节点
+- hosts: master[1:]
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      k8s_path: "/etc/kubernetes"
+      role_step: extend_crt_other_master.yml
+    when: hostvars[groups.master[0]].k8s_version is version("1.9",'<')
+
+# 恢复node节点
+- hosts: node
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      k8s_path: "/etc/kubernetes"
+      role_step: extend_crt_node.yml
+      master_token: "{{hostvars[groups.master[0]].master_token}}"
+    when: hostvars[groups.master[0]].k8s_version is version("1.9",'<')
+
+- hosts: master[0]
+  sudo: yes
+  tasks:
+  - name: 审批通过请求的csr
+    shell: sorce /etc/profile;kubectl get csr | grep -w Pending | awk '{print $1}' | xargs kubectl certificate approve 

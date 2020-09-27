@@ -1,0 +1,54 @@
+# 变量整理：
+#  work_dir 工作路径
+#  work_dir_ansible ansible所在路径
+#  username: 操作用户
+
+- name: 安装 expect libselinux-python
+  vars:
+    packages:
+    - lvm2
+    - python2-simplejson
+    - python-netaddr
+    - expect
+    - libselinux-python
+    - rsync
+    - pyOpenSSL-0.15.1-1.el7
+    - oniguruma
+    - jq
+  yum: name={{packages}} state=installed update_cache=yes
+
+- name: 打包boots
+  args:
+    chdir: "{{work_dir}}"
+  shell: mkdir -p boots && cd bcos-boots && mvn clean package && cp target/boots.jar ../bcos-admin/roles/deploy/files/
+
+- name: 打包license
+  args:
+    chdir: "{{work_dir}}"
+  shell: mkdir -p license && cd bcos-license && mvn clean package && cp target/license.jar ../license
+
+- name: 初始化控制及
+  include: install_control.yml
+
+- name: 设置license安装目录
+  set_fact: pack_path={{work_dir}}/license
+
+- name: 创建license安装目录
+  file: path={{pack_path}} state=directory
+
+- name: 安装boots服务
+  template: src=license.service dest=/usr/lib/systemd/system/ force=true
+
+- name: 重新加载配置服务配置
+  shell: systemctl daemon-reload
+
+- name: 启动boots系统服务
+  service: name=license state=restarted enabled=yes
+
+- name: 查询虚拟化网络
+  shell: "ip link show | grep -E 'br-|flannel|cali' | awk '{print $2}' | cut -d: -f1"
+  register: net_link
+
+- name: 清理虚拟化网络
+  shell: ip link delete {{item}} || true
+  with_items: "{{net_link.stdout_lines}}"

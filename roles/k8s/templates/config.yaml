@@ -1,0 +1,80 @@
+## https://godoc.org/k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta1
+#apiVersion: kubeadm.k8s.io/v1beta1
+#kind: InitConfiguration
+## 本地的api server监听地址和端口 和下面自定义yaml 应该是一样的，不用配置
+##localAPIEndpoint:
+##  advertiseAddress: {{virtual_ip}}
+##  bindPort: {{secure_port_ha}}
+## 本节点加入集群的注册信息,也就是kubectl get node看到的信息
+#nodeRegistration:
+## 如果不填写name字段，则默认使用主机名，名字最好是是集群唯一
+##  name: master1
+#  criSocket: /var/run/containerd/containerd.sock
+## 污点，NoSchedule表示不调度Pod到这台node上
+## 详细信息参考：https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+#  taints:
+#  - effect: NoSchedule
+#    key: node-role.kubernetes.io/master
+#---
+apiVersion: kubeadm.k8s.io/v1beta1
+kind: ClusterConfiguration
+# 集群名字
+clusterName: kubernetes
+# controller访问api server的地址
+# 如果是多个master的集群，这里就要写前端lb的地址
+controlPlaneEndpoint: {{virtual_ip}}:{{secure_port_ha}}
+apiServer:
+  extraArgs:
+{% if insecure_port != '0' and insecure_port != '' %}
+    insecure-port: "{{insecure_port}}"
+    insecure-bind-address: "0.0.0.0"
+{% endif %}
+
+    secure-port: "{{secure_port}}"
+    runtime-config: "batch/v2alpha1=true"
+    audit-log-path: "/etc/pki/audit.log"
+    audit-log-maxage: "1"
+    audit-log-maxbackup: "1"
+    audit-log-maxsize: "10"
+    service-node-port-range: {{service_node_port_range}}
+#  extraVolumes:
+#  - name: "some-volume"
+#    hostPath: "/etc/some-path"
+#    mountPath: "/etc/some-pod-path"
+#    readOnly: false
+#    pathType: File
+
+controllerManager:
+  extraArgs:
+    node-monitor-grace-period: "1m40s"
+    
+#scheduler:
+#  extraArgs:
+    
+dns:
+  type: CoreDNS
+etcd:
+  external:
+    endpoints:
+{% for node in groups.etcd %}
+    - http://{{node}}:2379
+{% endfor %}
+#    caFile: "/etc/kubernetes/pki/etcd/etcd-ca.pem"
+#    certFile: "/etc/kubernetes/pki/etcd/etcd.pem"
+#    keyFile: "/etc/kubernetes/pki/etcd/etcd-key.pem"
+imageRepository: {{harbor.dns}}:{{harbor.port}}/library
+kubernetesVersion: v{{version.k8s}}
+networking:
+# service网段
+  serviceSubnet: {{service_subnet}}
+# pod网络网段
+  podSubnet: {{pod_subnet}}
+#  dnsDomain: cluster.local
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+mode: ipvs
+#---
+#apiVersion: kubelet.config.k8s.io/v1beta1
+#kind: KubeletConfiguration
+#cgroupDriver: systemd

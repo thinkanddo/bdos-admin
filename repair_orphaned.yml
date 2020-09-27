@@ -1,0 +1,7 @@
+---
+- hosts: master:node
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      role_step: repair_orphaned.yml

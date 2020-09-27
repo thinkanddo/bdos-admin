@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{namespace}}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ingress_domain}}
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ceph-secret
+  namespace: {{namespace}}
+type: "kubernetes.io/rbd"
+data:
+  key: {{ceph.mon.admin_key}}
+

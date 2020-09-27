@@ -1,0 +1,15 @@
+---
+- hosts: node:master
+  sudo: yes
+  serial: 1
+  vars_files:
+  - images.yaml
+  pre_tasks:
+    - name: 引入应用版本
+      include_vars: file=version name=version
+  roles:
+    - role: k8s
+      vars:
+        role_step: start.yml
+        service_subnet: "{{boots_global.COMPOSE_K8S_SERVICE_SUBNET}}"
+      when: (boots_global.COMPOSE_K8S_INSTALL_FLAG|bool)

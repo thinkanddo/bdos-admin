@@ -1,0 +1,148 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: bdos
+  name: bdos
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: bdos
+  template:
+    metadata:
+      labels:
+        app: bdos
+        podevent: bdos
+      name: bdos
+      namespace: {{namespace}}
+    spec:
+      hostAliases:
+      - ip: "{{harbor.ip}}"
+        hostnames:
+        - "{{harbor.dns}}"
+      containers:
+      - env:
+        - name: MYSQL_IP
+          value: "{{mysql.ip}}"
+        - name: MYSQL_PORT
+          value: "{{mysql.port}}"
+        - name: MYSQL_NAME
+          value: "{{mysql.databases.bdos}}"
+        - name: MYSQL_USERNAME
+          value: "{{mysql.username}}"
+        - name: MYSQL_PASSWORD
+          value: "{{mysql.password}}"
+        - name: LOG_LEVEL
+          value: "{{log_level}}"
+        - name: PINPOINT_SWITCH
+          value: "{{pinpoint.switch}}"
+        - name: PINPOINT_SERVER_IP
+          value: "{{pinpoint.server_ip}}"
+        - name: PINPOINT_TCP_PORT
+          value: "{{pinpoint.tcp_port}}"
+        - name: PINPOINT_STAT_PORT
+          value: "{{pinpoint.stat_port}}"
+        - name: PINPOINT_SPAN_PORT
+          value: "{{pinpoint.span_port}}"
+        - name: POD_TENANT_NAME
+          value: "{{namespace}}"
+        - name: POD_SERVICE_NAME
+          value: bdos
+        - name: JAVA_OPTS
+          value: -Xms1024M -Xmx8172M -XX:PermSize=1024M -XX:MaxNewSize=1024M -XX:MaxPermSize=1024M -Dfile.encoding=utf-8
+        image: {{harbor.dns}}:{{harbor.port}}/{{images.bcos.bdos}}
+        imagePullPolicy: Always
+        name: bdos
+#        livenessProbe:
+#          httpGet:
+#            path: /bdos/swagger-ui.html
+#            port: 8080
+#            host: localhost
+#          periodSeconds: 10
+#          initialDelaySeconds: 120
+#          failureThreshold: 6
+        resources:
+          limits:
+            cpu: "6"
+            memory: 10Gi
+          requests:
+            cpu: "2"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /data01
+          name: harbor-ca
+        - mountPath: {{ceph.mds.mount_point}}
+          name: cephfs
+        - mountPath: /etc/ceph/
+          name: ceph-secret
+        - mountPath: /etc/kubernetes/admin.conf
+          name: admin-conf
+          subPath: admin.conf
+      imagePullSecrets:
+      - name: harbor-secret
+      volumes:
+      - hostPath:
+          path: /etc/docker/certs.d/
+          type: DirectoryOrCreate
+        name: harbor-ca
+      - cephfs:
+          monitors: {{ceph.mon.eps.split(',')|to_yaml}}
+          path: /
+          secretRef:
+            name: ceph-secret
+          user: admin
+        name: cephfs
+      - hostPath:
+          path: /etc/ceph/
+          type: DirectoryOrCreate
+        name: ceph-secret
+      - secret:
+          secretName: admin-conf
+        name: admin-conf
+---
+##################         Service          ##################
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bdos
+    svcevent: bdos
+  name: bdos
+  namespace: {{namespace}}
+spec:
+  ports:
+  - name: bcos
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: bdos
+  type: ClusterIP
+
+---
+##################         ingress         ##################
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-body-size: 3G
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1200"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1200"
+    nginx.ingress.kubernetes.io/proxy-redirect-from: ~*http://([a-z]*):([0-9]*)/(.*)
+    nginx.ingress.kubernetes.io/proxy-redirect-to: /$3
+  name: {{ingress_domain}}.bdos
+  namespace: {{namespace}}
+spec:
+  rules:
+  - host: {{ingress_domain}}
+    http:
+      paths:
+      - backend:
+          serviceName: bdos
+          servicePort: 8080
+        path: /bdos

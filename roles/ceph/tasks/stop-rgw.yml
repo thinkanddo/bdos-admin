@@ -1,0 +1,6 @@
+- name: 获取hostname
+  shell: hostname
+  register: hostname
+
+- name: 停止 rgw 服务
+  service: name=ceph-radosgw@rgw.{{hostname.stdout}} state=stopped

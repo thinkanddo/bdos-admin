@@ -1,0 +1,6 @@
+- name: 获取hostname
+  shell: hostname
+  register: hostname
+
+- name: 停止 mds 服务
+  service: name=ceph-mds@{{hostname.stdout}} state=stopped

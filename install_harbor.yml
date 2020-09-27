@@ -1,0 +1,34 @@
+---
+- hosts: harbor
+  sudo: yes
+  roles:
+  - role: common
+    vars:
+      role_step: alloc_part.yml
+      alloc_dev: "{{boots_roles.harbor[inventory_hostname].devs}}"
+  - role: harbor
+    vars:
+      role_step: install_harbor.yml
+      harbor_dns: "{{(boots_global.COMPOSE_HARBOR_DNS=='') | ternary( inventory_hostname ,boots_global.COMPOSE_HARBOR_DNS) }}"
+      http_ports: "{{boots_global.PORT_HARBOR_HTTP}}"
+      https_ports: "{{boots_global.PORT_HARBOR_HTTPS}}"
+      notary_ports: "{{boots_global.PORT_HARBOR_NOTARY}}"
+      log_ports: "{{boots_global.PORT_HARBOR_LOG}}"
+      harbor_admin_password: "{{boots_global.COMPOSE_HARBOR_ADMIN_PASSWORD}}"
+      file_system: xfs
+      harbor_work_dir: "{{mount_path}}"
+  post_tasks:
+  - name: 将harbor证书copy到控制机
+    vars:
+      cert_src: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+    fetch: src={{mount_path}}/data/cert/server.crt dest={{cert_src}}/ flat=yes
+  - name: 保存harbor角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.harbor[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+  - name: 保存global信息
+    vars:
+      ansible_global:
+        COMPOSE_HARBOR_IP: "{{inventory_hostname}}"
+        COMPOSE_HARBOR_WORK_DIR: "{{mount_path}}"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"

@@ -1,0 +1,18 @@
+- name: 安装ntp应用
+  vars:
+    packages:
+    - ntp
+    - ntpdate
+  yum: name={{packages}} state=installed
+
+- name: 注释ntp 配置
+  shell: sed -i 's/^server/#server/' /etc/ntp.conf
+
+- name: 配置ntpd server 服务
+  lineinfile: path=/etc/ntp.conf insertafter=EOF line="{{item}}"
+  with_items:
+  - server 127.127.1.0
+  - fudge 127.127.1.0 stratum 10
+
+- name: 启动ntpd服务
+  service: name=ntpd state=started enabled=yes

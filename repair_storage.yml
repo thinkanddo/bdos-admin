@@ -1,0 +1,15 @@
+---
+- hosts: docker
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: docker
+    vars:
+      role_step: repair_storage.yml
+
+- import_playbook: repair_harbor.yml
+
+- import_playbook: repair_devops.yml
+
+- import_playbook: repair_etcd.yml

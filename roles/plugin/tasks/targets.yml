@@ -1,0 +1,49 @@
+## 支持 组件的安装 升级 与 配置刷新
+- name: 设置node_export 和 process_export
+  vars:
+    targets:
+    - labels:
+        job: prometheus
+        monitor_cluster: ""
+        monitor_host: prometheus
+        monitor_port: "9090"
+        monitor_type: ""
+      targets:
+      - prometheus:9090
+    exporter:
+    - labels:
+        job: linux_node
+        monitor_cluster: ""
+        monitor_host: "{{item}}"
+        monitor_port: ""
+        monitor_type: "server"
+      targets:
+      - "{{item}}:{{port.node}}"
+    - labels:
+        job: linux_process
+        monitor_cluster: ""
+        monitor_host: "{{item}}"
+        monitor_port: ""
+        monitor_type: ""
+      targets:
+      - "{{item}}:{{port.process}}"
+  set_fact: targets={{targets|union(exporter)}}
+  when: (plugin_name=="prometheus" and item not in (node_exclude|default([])))
+  with_items: "{{groups.default}}"
+
+# hosts文件格式与/etc/hosts文件格式相同
+- name: 查看coredns hosts文件
+  shell: |
+    if [[ -f {{extra_hosts_path}} ]];then
+      cat {{extra_hosts_path}}
+    fi
+  register: extra_hosts_tmp
+  when: extra_hosts_path is defined
+
+- name: 设置core dns hosts变量
+  set_fact: extra_hosts={{extra_hosts_tmp.stdout_lines|default([])}}
+
+- name: 设置coredns
+  set_fact: extra_hosts={{extra_hosts | union ([ item ~ "  " ~ boots_roles.default[item].hostname ])}}
+  with_items: "{{groups.default}}"
+  when: ("default" in groups)

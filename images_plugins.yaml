@@ -1,0 +1,41 @@
+arrange:
+  data_cloud:
+  - library/dc-dbmeta-ui:v1.0
+  - library/dc-xpage-ui:v2.1.0
+  - library/dc-xpage:v2.1.0
+  - library/dc-ui:v2.1.0
+  - library/dc-redis:v5.0
+  - library/dc-portal:v2.1.0
+  - library/dc-cas-ui:v2.1.0
+  - library/dc-open-ui:v2.1.0
+  - library/dc-dbmeta:v2.1.0
+  - library/dc-work-ui:v2.1.0
+  - library/dc-nginx:v1.0
+  - library/dc-cirrodata:v2.1.0
+  - library/dc-fastdfs:v5.11
+  - library/dc-cas:v2.1.0
+  - library/dc-system:v2.1.0
+  - library/dc-authentic:v2.1.0
+  - library/ordercenter:v2.1.0
+  - library/open-api:v2.1.0
+  - library/open-access:v2.1.0
+  - library/epm-registry:v2.1.0
+  - library/epm-gateway:v2.1.0
+  - library/epm-auth:v2.1.0
+  - library/epm-eureka:v2.1.0
+  - library/epm-registry-ui:v1.0
+  - library/dp:v4.1
+  - library/agent:v4.1
+  - library/bdi:v4.1
+  - library/dg-zookeeper:v3.4.13
+  - library/dc-rocketmq:v1.0
+  - library/dg-activemq:v5.13.0
+  - library/dg-es:v4.1
+  - library/portal:v2.1.0
+  - library/dcinitmysql:v1
+  - library/broker:v1.13
+  - library/bconsole:v2.1.0
+  - library/data-governance-mysql:v4.1
+  - library/data-cloud-mysql:v1.0
+  - library/data-governance-cloud-mysql:v1.0
+

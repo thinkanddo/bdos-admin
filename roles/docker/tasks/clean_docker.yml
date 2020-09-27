@@ -1,0 +1,4 @@
+- include: reset_docker.yml
+
+- name: 清理docker 应用
+  yum: name=docker* state=absent

@@ -1,0 +1,29 @@
+# 入参
+#  mount_path: 工作目录
+#  control_port: ftp 控制端口
+#  data_port: ftp 数据端口
+#  passive_min_port:  ftp 被动数据端口最小值
+#  passive_max_port:  ftp 被动数据端口最大值
+#  ftp_user:  ftp用户名
+#  ftp_password:  ftp 密码
+#  ftp_name:  ftp 容器服务名称
+#  ftp_image： ftp 容器镜像地址
+#  control_address: 控制机地址
+#  harbor_endpoint:  harbor IP端口
+
+- name: 获取ftp容器
+  shell: docker ps -aqf name={{ftp_name}}
+  register: ftp_cid
+
+- name: 删除ftp 容器
+  shell: |
+    docker stop {{ftp_cid.stdout}}
+    docker rm {{ftp_cid.stdout}}
+  when: ftp_cid.stdout!=""
+
+- name: 启动ftp服务
+  shell: 'docker run -d -v {{mount_path}}/ftp_data:/home/vsftpd
+          -p {{data_port}}:20 -p {{control_port}}:21 -p {{passive_min_port}}-{{passive_max_port}}:{{passive_min_port}}-{{passive_max_port}}
+          -e FTP_USER={{ftp_user}} -e FTP_PASS={{ftp_password}} -e PASV_ADDRESS={{ftp_ip}}
+          -e PASV_MIN_PORT={{passive_min_port}} -e PASV_MAX_PORT={{passive_max_port}}
+          --name {{ftp_name}} --restart=always {{harbor.dns}}:{{harbor.port}}/{{images.devops.vsftpd}}'

@@ -1,0 +1,22 @@
+# 参数
+#  mount_path:  dockerlib 镜像目录名称
+#               dockerlib 镜像目录对应的VG的名称
+#  dataroot:    镜像目录对应的LV的名称
+#  docker_vg:  dockervg名称
+#  docker_registry_url:  docker仓库地址 如：172.16.125.123:5000
+
+- name: 制作thin-pool
+  include: make_{{storage_driver_lo}}.yml
+  
+- name: 安装docker
+  vars:
+    packages:
+    - containerd.io
+    - docker-ce
+    - docker-ce-cli
+  yum: name={{packages}}
+
+- name: 创建docker配置文件所在目录
+  file: path=/etc/docker state=directory
+
+- include: make_gpu.yml

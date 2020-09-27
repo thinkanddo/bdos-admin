@@ -1,0 +1,59 @@
+# 输入: 
+#   item_part: {devSize: 200,devName: "/dev/sda",devSizeUsed: 0,status: 0}
+#   part_type: 分区类型默认 parted 支持 sgdisk
+# 输出: part_info: {devSize: 200,devName: "/dev/sda2",devSizeUsed: 0,status: 2,name: "",partType: gpt/msdos}
+ 
+- name: 设置设备分区变量
+  set_fact: part_info={{not_alloced_dev[item_index]}}
+
+- name: 获取设备最后偏移量
+  script: obtain-dev.sh {{part_info.devParent}} 1 0
+  register: dev_json
+
+- name: 参数转换
+  set_fact: dev_offset={{dev_json.stdout|from_json}}
+
+- name: 创建分区(parted:gpt)
+  parted: device={{part_info.devParent}} part_start={{dev_offset.devSizeUsed}}GB part_end={{dev_offset.devSizeUsed+part_info.devSize}}GB state=present number=100 unit=GB label={{part_info.partType}}
+  when: part_info.partType == "gpt"
+
+- name: 创建分区(parted:msdos)
+  parted: device={{part_info.devParent}} part_start={{dev_offset.devSizeUsed}}GB part_end={{dev_offset.devSizeUsed+part_info.devSize}}GB state=present number=100 unit=GB label={{part_info.partType}} part_type=logical
+  when: part_info.partType == "msdos"
+
+- name: 获取分区信息
+  parted: device={{part_info.devParent}} unit=GB
+  register: parted_info
+
+#- name: 获取分区序号
+#  vars:
+#    gtp_query: "partitions[?end>`{{dev_offset.devSizeUsed}}`].num"
+#    dos_query: "partitions[?end>`{{dev_offset.devSizeUsed}}`&&num>`4`].num"
+#  set_fact: part_num={{parted_info|json_query((part_info.partType=="gpt")|ternary(gtp_query,dos_query))|max}}
+  
+- name: 获取分区序号
+  set_fact: part_num={{parted_info|json_query('partitions[*].num')|max}}
+
+# 为了支持nvme设备,比如`nvme0n1(主设备) nvme0n1p1(分区1) nvme0n1p2(分区2)`,这里重新从机器获取分区信息
+- name: 获取分区名
+  shell: ls /dev | grep -E '{{part_info.devParent[5:]}}.*{{part_num}}' | awk '{print "/dev/"$1}'
+  register: devName
+
+- name: 设置分区信息
+  set_fact: 
+    part_info: {id: "{{part_info.id}}",devName: "{{devName.stdout}}",devParent: "{{part_info.devParent}}",devSizeUsed: 0,status: "2",name: "{{part_info.name}}",partType: "{{part_info.partType}}",storeType: "{{part_info.storeType}}"}
+
+- name: 打印分区信息
+  debug: msg={{part_info}}
+
+- name: 保存设备信息
+  shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/dev?roleDev={{part_info|to_json|urlencode}}"
+
+- name: 清理分区信息
+  shell: dd if=/dev/zero of={{part_info.devName}} count=1 bs=4M
+
+- name: 获取分区组数据
+  set_fact: new_all_dev={{new_all_dev}}
+
+- name: 添加到分区组
+  set_fact: new_all_dev={{ [part_info] | union(new_all_dev)}}

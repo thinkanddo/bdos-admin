@@ -1,0 +1,3 @@
+- name: 从集群中删除节点
+  shell: source /etc/profile; kubectl delete no {{node_hostname}} || true
+  delegate_to: "{{master_ip}}"

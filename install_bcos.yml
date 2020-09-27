@@ -1,0 +1,60 @@
+---
+- hosts: master[0]
+  sudo: yes
+  vars:
+    bcos_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/yaml/bcos"
+    controller_ip: "{{boots_global.SYSTEM_CONTROL_IP}}"
+  vars_files:
+  - images.yaml
+  roles:
+  - role: bcos
+    vars:
+      role_step: bcos_init.yml
+  - role: bcos
+    vars:
+      role_step: bcos.yml
+      install_yaml:
+      - blogic.yaml
+    when: boots_global.COMPOSE_BLOGIC_INSTALL_FLAG|bool
+  - role: bcos
+    vars:
+      role_step: bcos.yml
+      install_yaml:
+      - bdocs.yaml
+  - role: bcos
+    vars:
+      role_step: bcos.yml
+      install_yaml:
+      - pinpoint.yaml
+    when: boots_global.COMPOSE_BLOGIC_INSTALL_FLAG|bool
+  - role: bcos
+    vars:
+      role_step: bcos.yml
+      install_yaml:
+      - bdos.yaml
+    when: boots_global.COMPOSE_BDOS_INSTALL_FLAG|bool
+  - role: bcos
+    vars:
+      role_step: bcos.yml
+      install_yaml:
+      - cas.yaml
+      - portal.yaml
+      - security.yaml
+      - bpm.yaml
+      - bconsole.yaml
+    when: boots_global.COMPOSE_BCONSOLE_INSTALL_FLAG|bool
+  - role: bcos
+    vars:
+      role_step: bcos.yml
+      conf_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/logkitconfs"
+      install_yaml:
+      - logkit.yaml
+    when: boots_global.COMPOSE_BLOGIC_INSTALL_FLAG|bool
+
+- hosts: localhost
+  tasks:
+  - name: 保存全局信息
+    vars:
+      ansible_global:
+        SYSTEM_INSTALL_FLAG: "true"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"

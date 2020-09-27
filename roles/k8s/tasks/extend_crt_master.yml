@@ -1,0 +1,54 @@
+- name: 备份证书目录
+  copy: src="{{k8s_path}}/" dest=/etc/kubernetes_bak mode=0644
+
+- name: 移除过期证书文件  
+  file: path={{item}} state=absent
+  with_items:
+    - "{{k8s_path}}/pki/apiserver.crt"
+    - "{{k8s_path}}/pki/apiserver.key"
+    - "{{k8s_path}}/pki/apiserver-kubelet-client.crt"
+    - "{{k8s_path}}/pki/apiserver-kubelet-client.key"
+    - "{{k8s_path}}/pki/front-proxy-client.crt"
+    - "{{k8s_path}}/pki/front-proxy-client.key"
+    - "{{k8s_path}}/admin.conf"
+    - "{{k8s_path}}/controller-manager.conf"
+    - "{{k8s_path}}/kubelet.conf"
+    - "{{k8s_path}}/scheduler.conf"
+
+- name: 生成crt和key,生成kubeconfig
+  shell: |
+    kubeadm alpha phase certs apiserver --config /opt/config.yaml
+    kubeadm alpha phase certs apiserver-kubelet-client --config /opt/config.yaml
+    kubeadm alpha phase certs front-proxy-client --config /opt/config.yaml
+    kubeadm alpha phase kubeconfig all --config /opt/config.yaml
+    chmod 777 {{k8s_path}}/admin.conf
+
+- name: 重启docker
+  service: name=docker state=restarted
+
+- name: 等待apiserver服务正常启动
+  wait_for: port={{bindPort}}
+
+- name: 删除penging的csr,耗时较长
+  shell: sorce /etc/profile;kubectl get csr | grep -w Pending | awk '{print $1}' | xargs kubectl delete csr
+
+- name: 查找需要删除的kubelet文件
+  find:
+      paths: /var/lib/kubelet/pki
+      patterns: kube*
+  register: files_to_delete
+
+- name: 删除kubelet的客户端的证书文件
+  file: path="{{item.path}}" state=absent
+  with_items: "{{files_to_delete.files}}"
+
+- name: 重启kubelet
+  service: name=kubelet state=restarted
+
+- name: 审批通过请求的csr
+  shell: sorce /etc/profile;kubectl get csr | grep -w Pending | awk '{print $1}' | xargs kubectl certificate approve
+
+- name: 获取token
+  include: upgrade_dbs.yml
+
+

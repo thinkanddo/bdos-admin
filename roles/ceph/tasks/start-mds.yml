@@ -1,0 +1,6 @@
+- name: 获取hostname
+  shell: hostname
+  register: hostname
+
+- name: 启动 mds 服务
+  service: name=ceph-mds@{{hostname.stdout}} state=started enabled=yes

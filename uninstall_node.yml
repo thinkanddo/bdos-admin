@@ -1,0 +1,34 @@
+---
+
+- hosts: node
+  sudo: yes
+  roles:
+  - role: k8s
+    vars:
+      role_step: "clean_k8s.yml"
+  - role: k8s
+    vars:
+      role_step: "delete_nodes.yml"
+      master_ip: "{{groups.master[0]}}"
+      node_hostname: "{{boots_roles.node[inventory_hostname].hostname}}"
+    when: groups.master|count >0
+
+- hosts: master[0]
+  sudo: yes
+  vars:
+    yaml_path: "{{boots_global.SYSTEM_WORK_DIR}}/data/yaml"
+  roles:
+  - role: plugin
+    vars:
+      role_step: plugins.yml
+      plugin_name: prometheus
+      namespace: kube-system
+      check_type: deploy
+      node_exclude: "{{groups.node}}"
+      port:
+        node: "{{boots_global.PORT_NODE_EXPORT}}"
+        process: "{{boots_global.PORT_PROCESS_EXPORT}}"
+        prometheus: "{{(boots_global.PORT_K8S_SERVICE_NODE_MIN|int)+10}}"
+      yaml_update:
+      - prometheus-configmap.yaml
+      yaml_install: []

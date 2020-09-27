@@ -1,0 +1,51 @@
+- name: 检测升级计划
+  shell: kubeadm upgrade plan --config /opt/config.yaml || true
+  register: upgrade_plan
+
+- name: 输出升级计划
+  debug: msg={{upgrade_plan.stdout}}
+
+- name: 备份config.yaml 文件
+  shell: cp /opt/config.yaml /opt/config_{{k8s_version.stdout}}.yaml
+
+- name: 复制 config.yaml 到 master节点opt
+  template: dest=/opt/ src=config.yaml
+
+- name: 生成manifests
+  shell: kubeadm init phase control-plane all --config /opt/config.yaml || true
+
+- name: 挂载localtime host
+  blockinfile:
+    path: "{{item}}"
+    insertafter: "^  volumes:"
+    marker: "  # localtime host volume"
+    block: "  - hostPath:\n      path: /etc/localtime\n    name: localtime"
+  with_items:
+  - "/etc/kubernetes/manifests/kube-apiserver.yaml"
+  - "/etc/kubernetes/manifests/kube-controller-manager.yaml"
+  - "/etc/kubernetes/manifests/kube-scheduler.yaml"
+
+- name: 挂载localtime container
+  blockinfile:
+    path: "{{item}}"
+    insertafter: "^    volumeMounts:"
+    marker: "    # localtime container volume"
+    block: "    - mountPath: /etc/localtime\n      name: localtime\n      readOnly: true"
+  with_items:
+  - "/etc/kubernetes/manifests/kube-apiserver.yaml"
+  - "/etc/kubernetes/manifests/kube-controller-manager.yaml"
+  - "/etc/kubernetes/manifests/kube-scheduler.yaml"
+
+- name: 启动kubelet服务
+  service: name=kubelet state=restarted enabled=yes
+
+- name: 等待组件状态ready
+  shell: source /etc/profile;kubectl get po -n kube-system -owide | grep {{hostname.stdout|lower}} | grep -E '^kube' | grep -v Running || true
+  register: result
+  until: (result.stdout_lines | count == 0)
+  retries: 180
+  delay: 10
+  ignore_errors: yes
+
+- name: 核心組件
+  debug: msg={{result}}

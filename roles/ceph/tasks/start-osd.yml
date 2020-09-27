@@ -1,0 +1,7 @@
+- name: 获取osd_id
+  shell: ls /var/lib/ceph/osd
+  register: osd_id
+
+- name: 启动 osd 服务
+  service: name={{item | replace ('-','-osd@')}} state=started enabled=yes
+  with_items: "{{osd_id.stdout_lines}}"

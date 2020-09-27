@@ -1,0 +1,36 @@
+
+- name: 检查 postgre
+  shell: docker ps | grep {{images.devops.postgres}} || true
+  register: postgre
+
+- name: 启动postgre
+  script: devops/devops_scripts/bonc-start-postgresql.sh {{mount_path}}/devops {{harbor.dns}}:{{harbor.port}}/{{images.devops.postgres}} pro
+  when: postgre.stdout_lines | count == 0
+
+- name: 检查 sonar
+  shell: docker ps | grep {{images.devops.sonarqube}} || true
+  register: sonar
+
+- name: 启动sonar
+  script: devops/devops_scripts/bonc-start-sonar.sh {{sonar_port}} {{mount_path}}/devops {{harbor.dns}}:{{harbor.port}}/{{images.devops.sonarqube}} pro
+  when: sonar.stdout_lines | count == 0
+
+- name: 检查 jenkins
+  shell: docker ps | grep {{images.devops.sonarqube}} || true
+  register: jenkins
+
+- name: 启动jenkins
+  script: devops/devops_scripts/bonc-start-devops.sh {{jenkins_port}} {{mount_path}}/devops {{harbor.dns}}:{{harbor.port}}/{{images.devops.devops}} pro {{harbor.dns}} {{harbor.ip}}
+  when: jenkins.stdout_lines | count == 0
+
+- name: 检查 vsftp
+  shell: docker ps | grep {{images.devops.vsftpd}} || true
+  register: vsftp
+
+- name: 启动ftp服务
+  shell: 'docker rm -f {{ftp_name}} || docker run -d -v {{mount_path}}/ftp_data:/home/vsftpd
+          -p {{data_port}}:20 -p {{control_port}}:21 -p {{passive_min_port}}-{{passive_max_port}}:{{passive_min_port}}-{{passive_max_port}}
+          -e FTP_USER={{ftp_user}} -e FTP_PASS={{ftp_password}} -e PASV_ADDRESS={{ftp_ip}}
+          -e PASV_MIN_PORT={{passive_min_port}} -e PASV_MAX_PORT={{passive_max_port}}
+          --name {{ftp_name}} --restart=always {{harbor.dns}}:{{harbor.port}}/{{images.devops.vsftpd}}'
+  when: vsftp.stdout_lines | count == 0 and ftp_flag

@@ -1,0 +1,12 @@
+- name: 获取osd_id
+  shell: ls /var/lib/ceph/osd
+  register: osd_id
+
+- name: 查询 osd 服务状态
+  shell: systemctl status {{item | replace ('-','-osd@')}} -l
+  register: service_result
+  ignore_errors: yes
+  with_items: "{{osd_id.stdout_lines}}"
+
+- name: 打印 osd 服务状态
+  debug: msg={{service_result.results|json_query('[*].stdout_lines')}}

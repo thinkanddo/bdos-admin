@@ -1,0 +1,2 @@
+- name: 修复孤儿进程
+  script: kubelet.sh

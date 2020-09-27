@@ -1,0 +1,62 @@
+---
+- hosts: ceph_mds[0]
+  sudo: yes
+  vars:
+    ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+    ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+    ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+  roles:
+  - role: ceph
+    vars:
+      role_step: change_config.yml
+      extend_flag: True
+    when: groups.ceph_mon_all is defined
+
+- hosts: ceph_mds[0]
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: add_mds.yml
+      ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+      ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+      ceph_work_dir: "/var/lib/ceph"
+      ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+      mds_hostname: "{{boots_roles.ceph_mds[inventory_hostname].hostname}}"
+      backup_flag: false
+    when: groups.ceph_mds_all|difference(groups.ceph_mds)|length == 0
+
+- hosts: ceph_mds[1:]
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: add_mds.yml
+      ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+      ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+      ceph_work_dir: "/var/lib/ceph"
+      ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+      mds_hostname: "{{boots_roles.ceph_mds[inventory_hostname].hostname}}"
+      backup_flag: true
+    when: groups.ceph_mds_all|difference(groups.ceph_mds)|length == 0
+
+- hosts: ceph_mds
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: add_mds.yml
+      ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+      ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+      ceph_work_dir: "/var/lib/ceph"
+      ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+      mds_hostname: "{{boots_roles.ceph_mds[inventory_hostname].hostname}}"
+      backup_flag: true
+    when: groups.ceph_mds_all|difference(groups.ceph_mds)|length != 0
+
+- hosts: ceph_mds
+  tasks:
+  - name: 保存ceph_mds角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.ceph_mds[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"

@@ -1,0 +1,64 @@
+- name: 设置镜像tag信息
+  vars:
+    image_group: "{{item.value}}"
+  set_fact: tags_need={{image_group|map('extract',image_group)|list|flatten | union (tags_need|default([]))}}
+  with_dict: "{{images}}"
+
+- name: 同步所有镜像
+  shell: docker pull {{harbor.dns}}:{{harbor.port}}/{{item}}
+  with_items: "{{tags_need}}"
+
+- name: 获取所有本地镜像
+  shell: docker images --digests | grep {{harbor.dns}}:{{harbor.port}}
+  register: tags_local
+
+- name: 获取harbor repo信息
+  shell: "curl  -s -k -u 'admin:{{harbor.password}}' -X GET -H 'Content-Type: application/json' 'https://{{harbor.center}}/api/search?q=library' | jq -r '.repository[] | .repository_name'"
+  register: library
+
+- name: 获取harbor tag信息
+  shell: "curl -s -k -u 'admin:Harbor123456' -X GET -H 'Content-Type: application/json' https://{{harbor.center}}/api/repositories/{{item}}/tags  | jq -r '.[] | .image=\"{{item}}:\"+.name+\": \"+.digest | .image '"
+  with_items: "{{library.stdout_lines}}"
+  register: tags
+
+- name: 设置harbor 仓库的全部镜像tag
+  set_fact: tags_all={{tags.results|json_query('[*].stdout_lines')|flatten|join('\n')|from_yaml}}
+
+- name: 设置待删除的镜像，新增的镜像和 需要更新的镜像
+  set_fact: tags_del={{tags_all|difference(tags_need)}} tags_new={{tags_need|difference(tags_all)}} tags_update={{[]}}
+
+- name: 软删除无用镜像tag
+  shell: "curl -k -u 'admin:{{harbor.password}}' -X DELETE -H 'Content-Type: application/json' -o /dev/null -s -w %{http_code} 'https://{{harbor.center}}/api/repositories/{{item.split(\":\")[0]}}/tags/{{item.split(\":\")[1]}}'"
+  with_items: "{{tags_del}}"
+
+- name: 设置需要更新的镜像tag
+  vars:
+    harbor_ep: "{{ harbor.dns }}:{{ harbor.port }}/"
+    image_item: '{{ item.split(" ") | difference([""]) }}'
+    image_repo: "{{ image_item[0] }}"
+    image_tag: "{{ image_item[1] }}"
+    image_digest: "{{ image_item[2] }}"
+    image: "{{ image_repo }}:{{ image_tag }}"
+    image_key: "{{ image | replace(harbor_ep,'') }}"
+  set_fact: tags_update={{ tags_update | union( [image_key] ) }}
+  when: harbor_ep in image_repo and image_key in tags_need and image_key in tags_all and image_digest != tags_all[image_key]
+  with_items: "{{tags_local.stdout_lines}}"
+
+- debug: msg="刪除的tag数量是 {{tags_del|count}} 个"
+
+- debug: msg="新增的tag数量是 {{tags_new|count}} 个"
+
+- debug: msg="更新的tag数量是 {{tags_update|count}} 个"
+
+- name: 登陆harbor
+  shell: docker login --username {{harbor.username}} --password {{harbor.password}} {{harbor.center}}
+
+- name: 推送新镜像和升级镜像
+  shell: docker tag {{harbor.dns}}:{{harbor.port}}/{{item}} {{harbor.center}}/{{item}} && docker push {{harbor.center}}/{{item}}
+  with_items:
+  - "{{tags_new}}"
+  - "{{tags_update}}"
+
+- name: 清理harbor残留数据
+  include: clean_harbor.yml
+  when: tags_update | count > 0 or tags_del | count > 0

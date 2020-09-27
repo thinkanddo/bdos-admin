@@ -1,0 +1,100 @@
+# mon_list: [{ip: "", hostname: ""},{}] mon的hostname和ip列表  -->mon_initial_members mon_host
+# extend_flag  扩节点的标识                                    -->public_network
+# all_osd_ip_num  集群所有osd数量                              -->osd_pool_default_size
+# civetweb_port  rgw的端口                                          -->rgw_frontends
+- name: 安装ceph
+  vars:
+    packages:
+    - ceph-deploy
+    - ceph
+  yum: name={{packages}} state=installed update_cache=yes
+
+- name: 从控制机同步配置文件
+  copy: src={{ceph_controller_conf_dir}}/{{item}} dest={{ceph_conf_dir}}/{{item}} mode=0644
+  with_items: "{{ceph_conf_list}}"
+
+- name: 修改mon秘钥用户为ceph
+  file: path=/etc/ceph/ceph.mon.keyring owner=ceph group=ceph mode=0644
+
+# sed -n "/\[global\]/,/\[.*\]/p" /etc/ceph/ceph.conf | grep -v "[\.*\]" 可以获取指定section里的配置，目前全用global就可用
+- name: 获取ceph配置信息
+  shell: |
+    arg_list='fsid mon_initial_members mon_host public_network osd_pool_default_size rgw_frontends'
+    tmp=0
+    echo '{'
+    for i in $arg_list
+    do
+      tmp=`expr $tmp + 1`
+      if [[ $tmp != '1' ]];then
+        echo ','
+      fi
+      value=$(cat /etc/ceph/ceph.conf | grep -E '^'$i'\ *=' | sed 's/'$i'\ *=\ *//')
+      echo \"$i\":\"$value\"
+    done
+    echo '}'
+  register: old_conf_tmp
+
+- name: 将ceph配置设成变量
+  set_fact: old_conf={{old_conf_tmp.stdout|from_json}}
+
+- name: 初始化ceph配置
+  set_fact:
+    fsid: "{{old_conf.fsid}}"
+    mon_initial_members: "{{old_conf.mon_initial_members}}"
+    mon_host: "{{old_conf.mon_host}}"
+    public_network: "{{old_conf.public_network}}"
+    osd_pool_default_size: "{{(old_conf.osd_pool_default_size=='')|ternary('3',old_conf.osd_pool_default_size)}}"
+    rgw_frontends: "civetweb port={{(old_conf.rgw_frontends.split('civetweb port=')|length == 2)|ternary(old_conf.rgw_frontends.split('civetweb port=')[1],'7480')}}"
+
+# rgw_frontends
+- name: 设置rgw_frontends
+  set_fact: rgw_frontends="civetweb port={{civetweb_port}}"
+  when: civetweb_port is defined
+
+# mon_initial_members mon_host
+- name: 设置 mon_initial_members mon_host变量
+  set_fact:
+    mon_initial_members: "{{mon_initial_members.split(',')|union(mon_list|map(attribute='hostname')|list)|join(',')}}"
+    mon_host: "{{mon_host.split(',')|union(mon_list|map(attribute='ip')|list)|join(',')}}"
+  when: mon_list is defined
+
+# public_network
+- name: 获取新增节点ip信息
+  shell: ip a | grep {{item}} | awk '{print $2}'
+  delegate_to: "{{item}}"
+  with_items: "{{(groups.ceph_mon|default([]))|union(groups.ceph_osd|default([]))|union(groups.ceph_mds|default([]))|union(groups.ceph_rgw|default([]))}}"
+  register: public_network_tmp
+  when: (extend_flag|default(False))|bool
+
+- name: 设置新增节点ip网段
+  set_fact: public_network_add={{[item|ipv4('network/prefix')]|union(public_network_add|default([]))}}
+  with_items: "{{public_network_tmp.results|json_query('[*].stdout')}}"
+  when: (extend_flag|default(False))|bool
+
+- name: 设置public_network变量
+  set_fact: public_network={{public_network.split(',')|union(public_network_add)|join(',')}}
+  when: (extend_flag|default(False))|bool
+
+# osd_pool_default_size
+- name: 设置old_osd_pool_default_size变量
+  set_fact: old_osd_pool_default_size={{osd_pool_default_size}}
+
+- name: 设置osd副本数
+  set_fact: osd_pool_default_size={{(all_osd_ip_num|int > 3)|ternary(3,all_osd_ip_num)}}
+  when: all_osd_ip_num is defined and all_osd_ip_num > 0
+
+- name: 修改已经存在的pool的副本数 并动态修改集群配置
+  shell: |
+    for i in $(ceph osd pool ls)
+    do
+      ceph osd pool set $i size {{osd_pool_default_size}}
+    done
+    ceph tell mon.* injectargs '--osd_pool_default_size {{osd_pool_default_size}}'
+    ceph tell osd.* injectargs '--osd_pool_default_size {{osd_pool_default_size}}'
+  when: old_osd_pool_default_size != osd_pool_default_size
+
+- name: 生成ceph相关配置文件
+  template: src=ceph.conf dest={{ceph_conf_dir}}/ceph.conf owner=root group=root mode=0644
+
+- name: 同步配置文件到控制机上
+  fetch: src={{ceph_conf_dir}}/ceph.conf dest={{ceph_controller_conf_dir}}/ceph.conf flat=yes

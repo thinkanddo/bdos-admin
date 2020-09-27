@@ -1,0 +1,33 @@
+version: '2'
+services:
+  ui:
+    networks:
+      harbor-chartmuseum:
+        aliases:
+          - harbor-ui
+  redis:
+    networks:
+      harbor-chartmuseum:
+        aliases:
+          - redis
+  chartmuseum:
+    container_name: chartmuseum
+    image: goharbor/chartmuseum-photon:v0.7.1-v1.6.1
+    restart: always
+    networks:
+      - harbor-chartmuseum
+    depends_on:
+      - redis
+    volumes:
+      - {{harbor_work_dir}}/data/chart_storage:/chart_storage:z
+      - ./common/config/chartserver:/etc/chartserver:z
+    logging:
+      driver: "syslog"
+      options:  
+        syslog-address: "tcp://127.0.0.1:{{log_ports}}"
+        tag: "chartmuseum"
+    env_file:
+      ./common/config/chartserver/env
+networks:
+  harbor-chartmuseum:
+    external: false

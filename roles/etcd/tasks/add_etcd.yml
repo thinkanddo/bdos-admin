@@ -1,0 +1,64 @@
+#  etcd_image_version   容器镜像版本
+#  etcd_peer_port:  etcd peer端口
+#  etcd_installed_peer  已经安装好的一个etcd主机
+
+- name: 设置集群访问地址
+  set_fact:
+    etcd_peer_url: http://{{inventory_hostname}}:{{etcd_peer_port}}
+    etcd_client_url: http://{{inventory_hostname}}:{{etcd_client_port}}
+    etcd_name: etcd-node-{{inventory_hostname|replace('.','-')}}
+    old_etcd_client: http://{{groups.etcd_old[0]}}:{{etcd_client_port}}
+    flag: false
+
+- name: 获取etcd的成员信息
+  uri: url={{old_etcd_client}}/v2/members method=GET return_content=yes
+  register: member_info
+
+- name: 判断需要添加的节点是否在etcd集群中
+  set_fact:
+    flag: true
+    etcd_id: "{{item.id}}"
+  when: etcd_peer_url in item.peerURLs
+  with_items: "{{member_info.json.members}}"
+
+- name: 清理需要添加的etcd节点
+  shell: docker exec -i etcd sh -c 'cd /usr/local/bin/;etcdctl --endpoints={{old_etcd_client}} member remove {{etcd_id}}'
+  delegate_to: "{{groups.etcd_old[0]}}"
+  when: flag
+
+- name: 等待10s
+  shell: sleep 10 || true
+
+- name: 清理etcd容器
+  shell: |
+    docker stop etcd
+    docker rm etcd
+  ignore_errors: yes
+
+- name: 清理etcd数据
+  file: path={{etcd_mount_path}} state=absent
+
+- name: 新增etcd节点
+  shell: docker exec -i etcd sh -c 'cd /usr/local/bin/;etcdctl --endpoints={{old_etcd_client}} member add {{etcd_name}}  {{etcd_peer_url}}' | grep -E '^ETCD_'
+  register: etcd_result
+  delegate_to: "{{groups.etcd_old[0]}}"
+
+- name: 等待10s
+  shell: sleep 10 || true
+
+- name: 启动新节点
+  shell: |
+    {{etcd_result.stdout}};
+    docker run --net=host --restart=always --name etcd -v {{etcd_mount_path}}:/data.etcd \
+    --detach {{harbor.dns}}:{{harbor.port}}/{{images.k8s.etcd}} /usr/local/bin/etcd \
+    --data-dir=data.etcd --name {{etcd_name}} \
+    --initial-advertise-peer-urls {{etcd_peer_url}} \
+    --listen-peer-urls {{etcd_peer_url}} \
+    --advertise-client-urls {{etcd_client_url}} \
+    --listen-client-urls {{etcd_client_url}} \
+    --initial-cluster $ETCD_INITIAL_CLUSTER \
+    --heartbeat-interval 500 \
+    --election-timeout 5000 \
+    --initial-cluster-state $ETCD_INITIAL_CLUSTER_STATE \
+    --initial-cluster-token my-etcd-token 
+

@@ -1,0 +1,104 @@
+# 变量整理：
+#  work_dir 工作路径
+#  work_dir_ansible ansible所在路径
+#  username: 操作用户
+#  mysql_flag:  是否安装mysql
+#  mysql_ip:  mysql 主机地址
+#  mysql_user: mysql 用户名
+#  mysql_password: mysql 密码
+#  mysql_port:  mysql 端口
+#  mysql_db_boots:  bods数据库
+#  mysql_db_shear: shera数据库
+
+- name: 获取需要更新的信息
+  include_vars: file=version name=version
+
+- name: 控制机安装expect
+  yum: name=expect state=installed
+
+- name: 生成控制机公钥
+  script: secret-keygen.sh
+
+- name: 安装ftp 客户端
+  yum: name=ftp state=installed
+  ignore_errors: yes
+
+- name: 安装mariadb 客户端
+  yum: name=mariadb state=installed
+
+- name: 安装mysql 服务端
+  yum: name=mariadb-server state=installed
+  when: mysql_flag
+
+# 避免 mariadb 连接数修改无效
+- name: 修改mysql启动文件
+  blockinfile:
+    path: "/usr/lib/systemd/system/mariadb.service"
+    insertbefore: "^ExecStartPre"
+    marker: "# mariadb config"
+    block: "LimitNOFILE=65535\nLimitNPROC=65535"
+  when: mysql_flag
+
+- name: 使启动文件生效
+  shell: systemctl daemon-reload
+  when: mysql_flag
+
+- name: 修改mysql配置文件
+  template: dest={{item.dest}} src={{item.src}}
+  with_items:
+  - {dest: "/etc/my.cnf", src: "my.cnf"}
+  - {dest: "/etc/my.cnf.d/client.cnf", src: "client.cnf"}
+  - {dest: "/etc/my.cnf.d/server.cnf", src: "server.cnf"}
+  when: mysql_flag
+
+- name: 启动mysql服务
+  service: name=mariadb state=started enabled=yes
+  when: mysql_flag
+
+- name: 创建用户
+  shell: mysqladmin -u {{mysql_user}} password {{mysql_password}}
+  when: mysql_flag
+
+- name: 给用户授权
+  shell: mysql -u{{mysql_user}} -p{{mysql_password}} -P{{mysql_port}} --default-character-set=utf8 -e "{{item}};"
+  with_items:
+  - update mysql.user set password=password('{{mysql_password}}') where user='{{mysql_user}}'
+  - grant all privileges on *.* to '{{mysql_user}}'@'%' identified by '{{mysql_password}}' with grant option
+  - flush privileges
+  when: mysql_flag
+
+- name: 创建临时目录
+  file: path={{bcos_path}} state=directory force=true
+
+- name: 生成boots.sql
+  template: src=boots.sql dest={{bcos_path}}
+
+- name: 生成boots.sql
+  template: src=boots_cfg.sql dest={{bcos_path}}
+
+- name: 创建bdos数据库
+  shell: 'mysql -u{{mysql_user}} -p{{mysql_password}} -P{{mysql_port}} -h{{mysql_ip}} --default-character-set=utf8 -e "
+    drop database if exists {{mysql_db_boots}};
+    create database {{mysql_db_boots}} default character set utf8 collate utf8_general_ci;
+    use {{mysql_db_boots}}; source {{bcos_path}}/boots_cfg.sql; source {{bcos_path}}/boots.sql; "'
+
+- name: 安装 java
+  yum: name=jdk1.8 state=installed
+
+- name: 设置应用包安装目录
+  set_fact: pack_path={{work_dir}}/boots
+
+- name: 创建boots安装目录
+  file: path={{pack_path}} state=directory
+
+- name: copy boots.jar 应用包
+  copy: src=boots.jar dest={{pack_path}}
+
+- name: 安装boots服务
+  template: src=boots.service dest=/usr/lib/systemd/system/ force=true
+
+- name: 重新加载配置服务配置
+  shell: systemctl daemon-reload
+
+- name: 启动boots系统服务
+  service: name=boots state=restarted enabled=yes

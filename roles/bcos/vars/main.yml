@@ -1,0 +1,69 @@
+namespace: "{{boots_global.SYSTEM_NAMESPACE}}"
+root_domain: "{{boots_global.SYSTEM_ROOT_DOMAIN}}"
+ingress_domain: "{{boots_global.SYSTEM_NAMESPACE}}.{{boots_global.SYSTEM_ROOT_DOMAIN}}"
+log_level: "{{boots_global.SYSTEM_LOG_LEVEL}}"
+harbor:
+  username: "admin"
+  password: "{{boots_global.COMPOSE_HARBOR_ADMIN_PASSWORD}}"
+  email: "admin@example.com"
+  crt_path: "/data01/{{(boots_global.COMPOSE_HARBOR_DNS=='')|ternary(boots_global.COMPOSE_HARBOR_IP,boots_global.COMPOSE_HARBOR_DNS)}}:{{boots_global.PORT_HARBOR_HTTPS}}/ca.crt"
+  ip: "{{boots_global.COMPOSE_HARBOR_IP}}"
+  dns: "{{(boots_global.COMPOSE_HARBOR_DNS=='')|ternary(boots_global.COMPOSE_HARBOR_IP,boots_global.COMPOSE_HARBOR_DNS)}}"
+  port: "{{boots_global.PORT_HARBOR_HTTPS}}"
+mysql:
+  ip: "{{boots_global.COMPOSE_MYSQL_IP}}"
+  port: "{{boots_global.PORT_MYSQL}}"
+  username: "{{boots_global.COMPOSE_MYSQL_USERNAME}}"
+  password: "{{boots_global.COMPOSE_MYSQL_PASSWORD}}"
+  databases:
+    bconsole: "bconsole"
+    bdos: "bdos"
+    bpm: "bpm"
+    portal: "portal"
+    blogic: "blogic"
+ftp:
+  ip: "{{boots_global.COMPOSE_FTP_IP}}"
+  port: "{{boots_global.PORT_FTP_CONTROL}}"
+  username: "{{boots_global.COMPOSE_FTP_USERNAME}}"
+  password: "{{boots_global.COMPOSE_FTP_PASSWORD}}"
+pinpoint:
+  switch: "{{boots_global.COMPOSE_BLOGIC_INSTALL_FLAG|bool|ternary('on','off')}}"
+  server_ip: "pinpoint.{{namespace}}.svc"
+  tcp_port: "{{boots_global.PORT_PINPOINT_TCP}}"
+  stat_port: "{{boots_global.PORT_PINPOINT_STAT}}"
+  span_port: "{{boots_global.PORT_PINPOINT_SPAN}}"
+ceph:
+  ceph_dir: "/etc/ceph/"
+  mon:
+    ip: "{{boots_global.COMPOSE_CEPH_MON_IP}}"
+    port: "{{boots_global.PORT_CEPH_MON}}"
+    eps: "{{boots_global.COMPOSE_CEPH_MON_ENDPOINTS}}"
+    admin_key: "{{boots_global.COMPOSE_CEPH_ADMIN_KEY}}"
+  rgw:
+    access_key: "{{boots_global.COMPOSE_CEPH_RGW_ACCESS_KEY}}"
+    secret_key: "{{boots_global.COMPOSE_CEPH_RGW_SECRET_KEY}}"
+    ip: "{{boots_global.COMPOSE_CEPH_RGW_IP}}"
+    port: "{{boots_global.PORT_CEPH_RGW}}"
+  mds:
+    mount_point: "{{boots_global.COMPOSE_CEPH_MDS_MOUNT_POINT}}"
+devops:
+  ip: "{{boots_global.COMPOSE_JENKINS_IP}}"
+  jenkins_port: "{{boots_global.PORT_JENKINS}}"
+  sonar_port: "{{boots_global.PORT_SONAR}}"
+  docker_port: "{{boots_global.PORT_DOCKER}}"
+etcd:
+  ip: "{{boots_global.COMPOSE_ETCD_IP}}"
+  client_port: "{{boots_global.PORT_ETCD_CLIENT}}"
+  peer_port: "{{boots_global.PORT_ETCD_PEER}}"
+  linked: "{{boots_global.COMPOSE_ETCD_LINKED}}"
+master:
+  vip: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(groups.master[0], boots_global.COMPOSE_K8S_VIRTUAL_IP)}}"
+  secure_port: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(boots_global.PORT_K8S_SECURE,boots_global.PORT_K8S_SECURE_HA)}}"
+  insecure_port: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(boots_global.PORT_K8S_INSECURE,boots_global.PORT_K8S_INSECURE_HA)}}"
+operator:
+  vgname: "{{boots_global.COMPOSE_OPERATOR_VG_NAME}}"
+es:
+  host_name: "{{boots_global.COMPOSE_ES_MASTER_IPS}}"
+  cluster_name: "{{boots_global.COMPOSE_ES_CLUSTER_NAME}}"
+  host_port: "{{boots_global.PORT_ES_TCP}}"
+  http_port: "{{boots_global.PORT_ES_HTTP}}"

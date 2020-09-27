@@ -1,0 +1,83 @@
+# origin_dev    数据库里的设备信息
+# controller_ip 控制机ip
+# net_dev       网卡设备名
+
+#- name: 查询内核
+#  shell: uname -r
+#  register: kernel
+#
+#- name: 检查内核
+#  fail: msg=内核匹配失败
+#  when: kernel.stdout not in check_kernel
+#
+#- include: check_yum.yml
+#  vars:
+#    rpm_name: "{{item_rpm}}"
+#  with_items: "{{check_rpm}}"
+#  loop_control:
+#    loop_var: item_rpm
+
+- name: 获取内核版本
+  shell: uname -r
+  register: core_version
+
+- name: 校验内核版本
+  set_fact: error_msg={{error_msg|union(["内核匹配失败"])}}
+  when: core_version.stdout is version('3.10.0-947.5.1.el7.x86_64','<')
+
+- name: 获取时间差
+  shell: source /etc/profile; echo `clockdiff {{inventory_hostname}}` | awk '{print ($2+$3)/2}'
+  delegate_to: localhost
+  register: timediff
+
+- name: 校验时间差(阙值50ms)
+  set_fact: error_msg={{error_msg|union(["与控制机时间差大于50ms"])}}
+  when: (timediff.stdout|float|abs) > 50
+
+- name: 检查内核参数
+  shell: sysctl -p
+
+- name: 初始化磁盘相关变量
+  set_fact: dev_info={{[]}}
+
+- name: 获取所有磁盘列表
+  shell: lsblk -l  2>/dev/null | grep -v -E '^rbd.*' | awk '{if($6=="disk")print "/dev/"$1}'
+  register: dev_list
+
+- name: 获取已使用磁盘列表(boot,/,ansible)
+  script: get_reject_dev.sh {{work_dir}} {{controller_ip}}
+  register: dev_used_list
+
+- name: 设置设备变量:设置设备变量
+  include: dev_check.yml
+  loop_control:
+      loop_var: item_devName
+  with_items: "{{dev_list.stdout_lines}}"
+
+- name: 获取内存大小
+  shell: |
+    mem=$(free -g | grep Mem | awk '{print $2}')
+    echo $mem | awk '{print int($1)==$1?$1:int($1)+1}'
+  register: mem_num
+
+- name: 获取cpu核数
+  shell: cat /proc/cpuinfo| grep "processor"| wc -l
+  register: cpu_cores_num
+
+- name: 查询默认路由
+  shell: |
+    net_dev=$(ip a | grep {{inventory_hostname}} | awk '{print $NF}')
+    ip route show | grep $net_dev | grep default
+  register: default_route
+
+- name: 检查默认路由
+  set_fact: error_msg={{error_msg|union(["没有默认路由"])}}
+  when: default_route.stdout_lines|count==0
+
+- name: 获取操作系统
+  shell: cat /etc/os-release  | grep ^NAME= | cut -f2 -d\" || true
+  register: os_name
+
+- name: 获取操作版本
+  shell: cat /etc/os-release  | grep ^VERSION_ID | cut -f2 -d\" || true
+  register: os_version

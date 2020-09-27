@@ -1,0 +1,68 @@
+---
+# groups.ceph_mon_all 是否定义表示是否是扩节点
+- hosts: ceph_mon[0]
+  sudo: yes
+  vars:
+    ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+    ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+    ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+    mon_list: "{{groups.ceph_mon | map('extract',boots_roles.ceph_mon) | list | json_query('[?`1`==`1`].{ip: id.ip,hostname:hostname}')}}"
+  pre_tasks:
+  - name: 查看ceph配置文件
+    find: paths={{ceph_controller_conf_dir}}/ patterns="{{ceph_conf_list|join(',')}}" recurse=no
+    register: ceph_conf_files
+    delegate_to: localhost
+  - name: 判断集群是否初始化
+    set_fact: ceph_flag={{ceph_conf_files.files|map(attribute='path')|list|union([])|count == 3}}
+  roles:
+  - role: ceph
+    vars:
+      role_step: init_mon.yml
+      civetweb_port: "{{boots_global.PORT_CEPH_RGW}}"
+    when: groups.ceph_mon_all is not defined and not ceph_flag
+  - role: ceph
+    vars:
+      role_step: change_config.yml
+      extend_flag: True
+    when: groups.ceph_mon_all is defined and ceph_flag
+
+- hosts: ceph_mon
+  sudo: yes
+  roles:
+  - role: ceph
+    vars:
+      role_step: add_mon.yml
+      ceph_controller_conf_dir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache"
+      ceph_conf_list: ["ceph.conf", "ceph.client.admin.keyring", "ceph.mon.keyring"]
+      ceph_conf_dir: "{{boots_global.COMPOSE_CEPH_DIR}}"
+      ceph_work_dir: "/var/lib/ceph"
+      mon_hostname: "{{boots_roles.ceph_mon[inventory_hostname].hostname}}"
+
+- hosts: ceph_osd_all:ceph_mds_all:ceph_rgw_all:ceph_client_all:ceph_mon_all:!ceph_mon
+  sudo: yes
+  tasks:
+  - name: 更新ceph集群的配置文件
+    copy: src={{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/ceph.conf dest={{boots_global.COMPOSE_CEPH_DIR}}/ceph.conf mode=0644
+    when: groups.ceph_mon_all is defined
+    ignore_errors: yes
+
+- hosts: ceph_mon
+  tasks:
+  - name: 保存ceph_mon角色信息
+    vars:
+      ansible_roles: {id: "{{boots_roles.ceph_mon[inventory_hostname].roleId}}", status: "2"}
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/role?hostRole={{ansible_roles|to_json|urlencode}}"
+
+- hosts: localhost
+  tasks:
+  - name: 获取ceph客户端密钥
+    shell: cat {{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/ceph.client.admin.keyring | grep key | awk  '{print $3}'
+    register: admin_key
+  - name: 保存全局信息
+    vars:
+      ansible_global:
+        COMPOSE_CEPH_ADMIN_KEY: "{{admin_key.stdout|b64encode}}"
+        COMPOSE_CEPH_MON_IP: "{{groups.ceph_mon[0]}}"
+        COMPOSE_CEPH_MON_ENDPOINTS: "{{groups.ceph_mon | join(':6789,')}}:6789"
+    shell: "curl -X POST -H 'code: {{boots_global.SYSTEM_ENV_CODE}}' {{boots_global.SYSTEM_CALLBACK_URL}}/global?global={{ansible_global|to_json|urlencode}}"
+    when: groups.ceph_mon|count>0 and groups.ceph_mon_all is not defined

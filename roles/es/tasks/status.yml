@@ -1,0 +1,7 @@
+- name: 查询 es 服务状态
+  shell: systemctl status es -l
+  ignore_errors: yes
+  register: service_result
+
+- name: 打印 es 服务状态
+  debug: msg={{service_result.stdout}}

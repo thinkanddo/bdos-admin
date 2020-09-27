@@ -1,0 +1,9 @@
+harbor:
+  ip: "{{boots_global.COMPOSE_HARBOR_IP}}"
+  dns: "{{(boots_global.COMPOSE_HARBOR_DNS=='')|ternary(boots_global.COMPOSE_HARBOR_IP,boots_global.COMPOSE_HARBOR_DNS)}}"
+  port: "{{boots_global.PORT_HARBOR_HTTPS}}"
+master_list: "{{groups.master_old|default(groups.master)}}"
+master:
+  vip: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(master_list[0], boots_global.COMPOSE_K8S_VIRTUAL_IP)}}"
+  secure_port: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(boots_global.PORT_K8S_SECURE, boots_global.PORT_K8S_SECURE_HA)}}"
+  insecure_port: "{{(boots_global.COMPOSE_K8S_VIRTUAL_IP == '') | ternary(boots_global.PORT_K8S_INSECURE, boots_global.PORT_K8S_INSECURE_HA)}}"

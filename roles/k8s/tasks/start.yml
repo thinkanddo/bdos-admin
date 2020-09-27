@@ -1,0 +1,12 @@
+- name: 查询docker cgroup
+  shell: docker info | grep Cgroup | awk '{print $3}'
+  register: cgroup_driver
+
+- name: 修改kubelet主配置文件
+  template: src=kubelet-kubeadm-1.14.conf dest=/usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf force=true
+
+- name: 刷新system配置
+  shell: systemctl daemon-reload
+
+- name: 启动 kubelet 服务
+  service: name=kubelet state=restarted enabled=yes

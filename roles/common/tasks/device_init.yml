@@ -1,0 +1,56 @@
+# 所用变量
+# work_dir
+# controller_ip
+# enable_dev
+# clean_paths
+# dev_opt: 控制设备是否可以操作
+
+- name: 设置设备名称列表
+  set_fact: dev_names={{enable_dev| json_query("[?`1`==`1`].devName")}} dev_types={{enable_dev| json_query("[?`1`==`1`].{dev_name:devName,part_type:partType}")}}
+
+- name: 获取系统分区列表part
+  script: get_reject_dev.sh {{work_dir}} {{controller_ip}}
+  register: dev_sys_list
+
+- name: 设置不可格式化的设备
+  set_fact: dev_used_list={{dev_sys_list.stdout_lines|union(unformat_dev|default([]))}}
+
+- name: 合并设备字符串
+  set_fact: dev_used={{dev_used_list|join(' ')}}
+
+- name: 格式化除系统盘和工作分区以外的所有磁盘disk，part
+  script: clean-disk.sh {{item}}
+  when: item not in dev_used
+  with_items: "{{dev_names}}"
+
+- name: 系统盘和工作分区并且是msdos分区类型的话，获取逻辑分区
+  shell: parted {{item.dev_name}} p | awk '{if($5=="logical"){print "{{item.dev_name}}"$1}}'
+  when: item.dev_name in dev_used and item.part_type=="msdos"
+  with_items: "{{dev_types}}"
+  register: dev_logic
+
+- name: 删除获取的逻辑分区
+  script: clean-disk.sh {{item}}
+  ignore_errors: yes
+  with_items: "{{dev_logic.results|json_query('[*].stdout_lines')|flatten|unique}}"
+
+- name: 系统盘和工作分区并且是msdos分区类型的话，将可用空间做成拓展分区
+  shell: |
+    if [[ $(parted {{item.dev_name}} print | grep extended | awk '{print $1}') != '' ]]
+      then parted {{item.dev_name}} rm $(parted {{item.dev_name}} print | grep extended | awk '{print $1}')
+    fi
+    echo 'n
+    e
+    
+    
+    
+    w' | fdisk {{item.dev_name}} || true
+    partprobe {{item.dev_name}}
+  when: item.dev_name in dev_used and item.part_type=="msdos"
+  with_items: "{{dev_types}}"
+
+- name: 保存设备信息
+  vars:
+    dev_info: {id: "{{item.id}}",devName: "{{item.devName}}",devSizeUsed: "{{item.devSizeUsed}}",status: "{{dev_opt}}",name: "",partType: "{{item.partType}}",storeType: "{{item.storeType}}"}
+  shell: curl -X POST {{boots_global.SYSTEM_CALLBACK_URL}}/dev?roleDev={{dev_info|to_json|urlencode}}
+  with_items: "{{enable_dev}}"

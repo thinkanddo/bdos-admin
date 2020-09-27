@@ -1,0 +1,60 @@
+## 支持 组件的安装 升级 与 配置刷新
+
+
+- debug: msg="开始安装{{plugin_name}}模块"
+
+- include: targets.yml
+
+- name: 创建模块 yaml目录
+  file: path={{yaml_path}}/{{plugin_name}} state=directory force=true
+
+- name: 判断是否已经安装
+  shell: source /etc/profile; kubectl get {{check_type}} -n {{namespace|default('kube-system')}} | grep {{plugin_name}} | awk '{print $1}'
+  register: svc_num
+
+- name: 设置安装标识
+  set_fact: install_flag={{svc_num.stdout_lines | count > 0}} upgrade_flag={{upgrade_flag|default(false)}} update_flag=false upgrade={{upgrade|default({})}}
+
+- name: 设置升级变量
+  set_fact: update_flag={{item.key.startswith(plugin_name|replace('-','_'))}}
+  when: (upgrade_flag and not update_flag)
+  with_dict: "{{upgrade.images|default({})}}"
+
+- name: 查询yaml文件
+  find: paths={{yaml_path}}/{{plugin_name}} patterns=*.yaml recurse=no
+  register: yaml_files
+  when: update_flag
+
+- name: 备份需要升级的yaml文件
+  shell: mkdir -p {{back_path}} ; cp -r {{yaml_path}}/{{plugin_name}} {{back_path}}
+  when: update_flag
+
+- name: 刪除组件服务
+  shell: source /etc/profile; kubectl delete -f {{item.path}} || true
+  with_items: "{{yaml_files.files}}"
+  when: install_flag and update_flag
+
+- name: 设置操作标识
+  set_fact: opt_type={{not install_flag or update_flag}}
+
+- name: 分发文件
+  template: src={{plugin_name}}/{{item}} dest={{yaml_path}}/{{plugin_name}} mode=0644
+  with_items: ["{{opt_type | ternary(yaml_install,yaml_update) | default([])}}"]
+
+- name: 等待组件清理完毕
+  shell: source /etc/profile;kubectl get po -n {{namespace|default('kube-system')}} | grep {{plugin_name}} | awk '{print $1}'
+  register: result
+  until: (result.stdout_lines | count == 0)
+  retries: 20
+  delay: 6
+  ignore_errors: yes
+  when: install_flag and update_flag
+
+- name: 强制删除po 残留
+  shell: source /etc/profile;kubectl delete po -n {{namespace|default('kube-system')}} {{item}} --grace-period=0 --force || true
+  with_items: result.stdout_lines
+  when: install_flag and update_flag and result.failed
+
+- name: 执行组件升级操作
+  shell: source /etc/profile; kubectl {{opt_type | ternary('create','replace')}} -f {{yaml_path}}/{{plugin_name}}/{{item}} || true
+  with_items: ["{{opt_type | ternary(yaml_install,yaml_update) | default([])}}"]

@@ -1,0 +1,78 @@
+#  启动etcd参数
+#  registry_url   仓库地址
+#  etcd_image_version  etcd 镜像版本
+#  etcd_peer_port: etcd peer port default: 2380
+#  etcd_client_port: etcd client port
+#  etcd_cluster_state:  etcd集群状态，新建集群是new
+#  etcd_mount_path：  etcd挂载地址
+
+- name: 设置集群访问地址
+  set_fact:
+    etcd_peer_url: "http://{{inventory_hostname}}:{{etcd_peer_port}}"
+    etcd_client_url: "http://{{inventory_hostname}}:{{etcd_client_port}}"
+    etcd_name: "etcd-node-{{inventory_hostname|replace('.','-')}}"
+    etcd_name_url: "etcd-node-{{inventory_hostname | replace('.','-') }}=http://{{inventory_hostname}}:{{etcd_peer_port}}"
+
+- name: 获取etcd 健康状态
+  shell: docker exec -i etcd sh -c 'cd /usr/local/bin/;ETCDCTL_API=3 etcdctl --endpoints=http://{{inventory_hostname}}:2379 endpoint health' || true
+  register: health_stdout
+
+- name: 打印升级前 健康状况
+  debug: msg={{health_stdout.stdout}}
+
+- name: 备份 etcd 数据
+  shell: docker exec -i etcd sh -c 'cd /usr/local/bin/;ETCDCTL_API=3 etcdctl --endpoints=http://{{inventory_hostname}}:2379 snapshot save /data.etcd/backup.db' || true
+
+- name: 获取etcd备份容器
+  shell: docker ps -aqf name=etcd_ || true
+  register: etcd_back
+
+- name: 删除备份容器
+  shell: docker rm -f {{item}} || true
+  with_items: "{{etcd_back.stdout_lines}}"
+
+- name: 备份etcd
+  shell: docker container update --restart=no etcd && docker rename etcd etcd_{{upgrade.version.k8s}} && docker stop etcd_{{upgrade.version.k8s}}
+
+- name: 升级etcd
+  shell: "docker run --net=host --restart=always --name etcd -v {{etcd_mount_path}}:/data.etcd
+    --detach {{harbor.dns}}:{{harbor.port}}/{{images.k8s.etcd}} /usr/local/bin/etcd
+    --data-dir=data.etcd --name {{etcd_name}}
+    --initial-advertise-peer-urls {{etcd_peer_url}}
+    --listen-peer-urls {{etcd_peer_url}}
+    --advertise-client-urls {{etcd_client_url}}
+    --listen-client-urls {{etcd_client_url}}
+    --initial-cluster {{groups['etcd']|map('extract',hostvars,'etcd_name_url')|list|join(',')}}
+    --heartbeat-interval 500
+    --election-timeout 5000
+    --initial-cluster-state {{etcd_cluster_state}}
+    --initial-cluster-token my-etcd-token"
+
+- name: 等到etcd 数据同步
+  shell: docker exec -i etcd sh -c 'cd /usr/local/bin/;ETCDCTL_API=3 etcdctl --endpoints=http://{{inventory_hostname}}:2379 endpoint health' || true
+  register: result
+  until: result.stdout.find("is healthy") != -1
+  retries: 60
+  delay: 2
+
+- name: 获取快照数据文件大小
+  shell: du -s /var/lib/etcd/backup.db | awk '{print $1}'
+  register: data_size
+
+# 等待 etcd 数据同步
+#- name: 等待etcd 数据同步
+#  vars:
+#    times: "{{(data_size.stdout|int)/(1024*50/130)}}"
+#  shell: sleep 10 || true
+#  with_sequence: start=0 end={{(times)|int}}
+- name: 再等会儿30s
+  vars:
+    times: "{{(data_size.stdout|int)/(1024*50/130)}}"
+  wait_for: timeout={{times|int}}
+
+- name: 获取etcd 健康状态
+  shell: docker exec -i etcd sh -c 'cd /usr/local/bin/;ETCDCTL_API=3 etcdctl --endpoints=http://{{inventory_hostname}}:2379 endpoint health' || true
+  register: health_stdout
+
+- name: 打印升级前 健康状况
+  debug: msg={{health_stdout.stdout}}

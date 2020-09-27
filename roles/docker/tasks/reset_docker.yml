@@ -1,0 +1,16 @@
+
+- name: 停止docker容器服务
+  shell: docker ps -aq | xargs docker rm -f || true
+
+- name: 获取docker挂载volume
+  shell: docker volume ls -q | xargs docker volume rm -f || true
+
+- name: 停止 docker 服务
+  service: name=docker state=stopped enabled=no
+  ignore_errors: yes
+
+- name: 清理docker 进程
+  shell: ps -ef | grep docker | grep -v grep | grep -v ansible | awk '{print $2}' | xargs kill -9 || true
+
+- name: 清理docker 挂载
+  shell: tac /proc/mounts | grep docker | grep {{mount_path|default('/bcos_mnt/dockerlib_data')}}/ | awk '{print $2}' | while read mount;do umount ${mount};done || true

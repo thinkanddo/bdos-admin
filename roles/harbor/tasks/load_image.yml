@@ -1,0 +1,14 @@
+- name: 同步升级镜像包
+  synchronize: src={{image_info.src}}/{{image_info.file}} dest={{image_info.dest}} group=no owner=no rsync_opts=--update
+
+- name: 导入镜像
+  args:
+    chdir: "{{image_info.dest}}"
+  shell: docker load < {{image_info.file}}
+
+- name: 登陆docker
+  shell: docker login --username {{harbor.username}} --password {{harbor.password}} {{harbor.dns}}:{{harbor.port}}
+
+- name: 推送镜像清单
+  shell: docker tag {{upgrade.harbor}}{{item.value}} {{harbor.dns}}:{{harbor.port}}/{{item.value}}  && docker push {{harbor.dns}}:{{harbor.port}}/{{item.value}}
+  with_dict: "{{upgrade.images}}"

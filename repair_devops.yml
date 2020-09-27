@@ -1,0 +1,24 @@
+---
+- hosts: devops
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: deploy
+    vars:
+      role_step: repair_devops.yml
+      jenkins_port: "{{boots_global.PORT_JENKINS}}"
+      sonar_port: "{{boots_global.PORT_SONAR}}"
+      sonar_endpoint: "http://{{inventory_hostname}}:{{sonar_port}}"
+      mount_path: /bcos_mnt/devops_data
+
+      data_port: "{{boots_global.PORT_FTP_DATA|default(21020)}}"
+      control_port: "{{boots_global.PORT_FTP_CONTROL|default(21021)}}"
+      passive_min_port:  "{{boots_global.PORT_FTP_MIN|default(21022)}}"
+      passive_max_port:  "{{boots_global.PORT_FTP_MAX|default(21119)}}"
+      ftp_user:  "{{boots_global.COMPOSE_FTP_USERNAME|default('bcos_ftp')}}"
+      ftp_password:  "{{boots_global.COMPOSE_FTP_PASSWORD|default('bcos.123')}}"
+      ftp_name:  bcos_ftp
+      ftp_flag: "{{boots_global.COMPOSE_FTP_INSTALL_FLAG|default(true)}}"
+      ftp_ip: "{{inventory_hostname}}"
+    when: (inventory_hostname in groups.devops)

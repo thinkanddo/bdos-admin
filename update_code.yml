@@ -1,0 +1,21 @@
+---
+- hosts: localhost
+  sudo: yes
+  tasks:
+  - name: 更新代码
+    args:
+      chdir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}"
+    shell: git checkout . && git tag -l | xargs git tag -d && git pull && git reset --hard master
+    register: pull_code
+
+  - name: 打印更新日志
+    debug: msg={{pull_code.stdout_lines}}
+
+  - name: 获取所有的tag列表
+    args:
+      chdir: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}"
+    shell: git tag | sort -r;
+    register: tag_list
+
+  - name: 提交tag数据
+    shell: curl -X POST {{boots_global.SYSTEM_CALLBACK_URL}}/tags?tags={{tag_list.stdout_lines|to_json|urlencode}}

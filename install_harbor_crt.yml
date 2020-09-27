@@ -1,0 +1,22 @@
+- hosts: docker
+  sudo: yes
+  vars_files:
+  - images.yaml
+  roles:
+  - role: docker
+    vars: 
+      role_step: cert_docker.yml
+      harbor:
+        ip: "{{boots_global.COMPOSE_HARBOR_IP}}"
+        dns: "{{boots_global.COMPOSE_HARBOR_DNS}}"
+        port: "{{boots_global.PORT_HARBOR_HTTPS}}"
+      base_images:
+      - "{{images.k8s.pause}}"
+      - "{{images.k8s.kube_proxy}}"
+      - "{{images.k8s.calico_cni}}"
+      - "{{images.k8s.calico_node}}"
+      - "{{images.k8s.calico_pod2daemon_flexvol}}"
+      - "{{images.k8s.calico_flannel}}"
+      - "{{images.k8s.ingress_controller}}"
+      cert_dir: "/etc/docker/certs.d/{{(harbor.dns=='')|ternary(harbor.ip,harbor.dns)}}:{{harbor.port}}"
+      cert_src: "{{boots_global.SYSTEM_WORK_DIR_ANSIBLE}}/cache/server.crt"

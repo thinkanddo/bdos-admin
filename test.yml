@@ -23,3 +23,15 @@
       chdir: "/home/deployer/pack/"
     shell: chmod -R 755 ./
 
+  - name: cron 注释掉定时任务
+    cron: 
+      user: admin
+      job: sh /export/servers/jcollector/bin/jcollectorStart.sh 2 >> /export/Logs/loghub.360buy.com/jcollector/crontab.log 2>&1 &
+      disabled: yes
+      backup: yes
+
+  - name: 设置sudo免密
+    lineinfile: name=/etc/sudoers line="admin ALL=(ALL) NOPASSWD:ALL" regexp="^admin" backrefs=yes
+
+  - name: 设置requiretty
+    lineinfile: name=/etc/sudoers line="#Defaults requiretty" regexp="^Defaults.*requiretty.*$" backrefs=yes

@@ -41,4 +41,4 @@
   sudo: yes
   tasks:
   - name: 审批通过请求的csr
-    shell: sorce /etc/profile;kubectl get csr | grep -w Pending | awk '{print $1}' | xargs kubectl certificate approve 
+    shell: source /etc/profile;kubectl get csr | grep -w Pending | awk '{print $1}' | xargs kubectl certificate approve

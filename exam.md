@@ -726,14 +726,18 @@ jdls面试整理
 1.线程池
 	1.1 线程的创建方式
 	1.2 对Future了解吗
-	1.3 线程池中提交一个任务的工作流程？
+	1.3 线程池中提交一个任务的工作流程？ https://zhuanlan.zhihu.com/p/346255858       https://blog.csdn.net/c10WTiybQ1Ye3/article/details/109684791
 	1.4 线程池的7种参数？
 	1.5 实际工作场景中使用过哪种线程池？（四种线程池，newFixedThreadPool定长、newCachedThreadPool缓存、newSingleThreadExecutor单线程、newScheduledThreadPool定长定时周期）
+    https://blog.csdn.net/weixin_39613089/article/details/111800882
 	1.6 你是怎么使用的，为什么？
 	1.7 对newFixedThreadPool的使用，假如有这样一个场景，定长=5，最大=10，当任务执行结束过后，当前线程池中还有线程吗？有几个？为什么？
 	1.8 线程池的线程执行结束后是怎么关闭退出的？
 	1.9 四种拒绝策略了解吗？使用过哪几种？为什么？
 	1.10 假如使用拒绝策略CallerRunsPolicy（由调用线程（提交任务的线程）处理该任务），线程池定长=1，如果一直不断的提交线程，总共会出现多少个线程？（n+1）
+    线程数满，阻塞队列满，让调用线程（提交任务的线程）直接执行此任务          =最大线程数+主线程
+    https://blog.csdn.net/qq_22253853/article/details/107050972
+    https://blog.csdn.net/suifeng629/article/details/98884972
 
 2.java锁
 	2.1 java锁的分类，可以详细说一下吗？
@@ -748,7 +752,7 @@ jdls面试整理
 	2.6 轻量级锁和重量级锁的区别？轻量级锁为什么轻量级？重为什么重？
 		轻量级代码层面实现（自旋），重量级cpu指令实现，笨重浪费资源
         轻量级竞争的时候不会阻塞，不断循环cas获取锁
-	2.7 synchronized和Lock的区别？
+	2.7 synchronized和Lock的区别？        https://zhuanlan.zhihu.com/p/83494101
 
 3.redis
 	3.1 redis的各种数据结构，以及底层实现？
@@ -801,7 +805,8 @@ AQS:
 独占又分公平锁（按照线程在队列中的排序）和非公平锁（无视队列去抢锁）
 共享：任务分N个线程执行，state会初始化为N（与线程数一致），每个线程执行完之后，会countDown()一次，
 同时state会CAS减一，所有线程执行完，state=0
-
+AQS中阻塞队列和条件队列：当多个线程调用 lock.lock()方法时，只有一个线程可以获得锁，其他的线程放入阻塞队列中，cas自选获取锁
+当获取锁的线程对应的条件变量await()方法被调用的时候，该线程就会释放锁，把当前线程转为node节点放入条件变量对应的条件队列中
 
 锁升级:
 偏向锁：只有一个线程进入临界区      01
@@ -823,3 +828,37 @@ LockRecord实现了锁重入，每当同一个线程获取同一个锁时，会�
 
 重量级锁：将LockRecord对象替换为monitor对象实现。主要通过monitorenter和monitorexit两个指令实现
 重量级锁重入，每次获取锁会对monitor对象中的计数器+1，锁退出会-1，直到为0.
+
+
+https://mp.weixin.qq.com/s/YTmeJxxv9eSfBuKIorfuaA
+线程的7种参数：
+1.核心线程数
+2.总线程数
+3.存活时间
+4.存活时间单位
+5.线程存储队列
+     5.1.有限队列-SynchronousQueue（在newCachedThreadPool()方法中使用）
+                这是一个内部没有任何容量的阻塞队列，任何一次插入操作的元素都要等待相对的删除/读取操作，否则进行插入操作的线程就要一直等待，反之亦然
+                public static ExecutorService newCachedThreadPool() {
+                        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                                      60L, TimeUnit.SECONDS,
+                                                      new SynchronousQueue<Runnable>());
+                }
+         有限队列-ArrayBlockingQueue
+                是一个由数组支持的有界阻塞队列（先进先出），假设初始队列长度为2，当添加第三个元素时线程会进行阻塞。同样的，当元素为空的时候，进行获取也会进行阻塞。
+     5.2 无限队列-LinkedBlockingQueue
+                创建ThreadPoolExecutor常用的队列。
+                当不设置队列初始长度，则为无界队列。
+                当设置队列初始长度则类似于ArrayBlockingQueue即插入与读取都会为空进行堵塞。
+ 6.ThreadFactory给一组线程用来命名，阿里巴巴规范建议使用，方便以后的错误查找。
+ 7.默认拒绝策略
+     7.1 AbortPolicy(抛出一个异常，默认的)
+     7.2 DiscardPolicy(直接丢弃任务)
+     7.3 DiscardOldestPolicy（丢弃队列里最老的任务，将当前这个任务继续提交给线程池）
+     7.4 CallerRunsPolicy（交给线程池调用所在的线程进行处理)
+
+
+
+switch重写（重写器  5个以上的case使用二分法查找）
+
+service 初始化出来后是单例的，每次调用不是重新new出来的，所有里面定义的全局变量一次赋值之后就不变了

@@ -728,14 +728,16 @@ jdls面试整理
 	1.2 对Future了解吗
 	1.3 线程池中提交一个任务的工作流程？ https://zhuanlan.zhihu.com/p/346255858       https://blog.csdn.net/c10WTiybQ1Ye3/article/details/109684791
 	1.4 线程池的7种参数？
-	1.5 实际工作场景中使用过哪种线程池？（四种线程池，newFixedThreadPool定长、newCachedThreadPool缓存、newSingleThreadExecutor单线程、newScheduledThreadPool定长定时周期）
+	1.5 实际工作场景中使用过哪种线程池？（四种线程池，newFixedThreadPool定长、newCachedThreadPool缓存、newSingleThreadExecutor单线程、newScheduledThreadPool定长定时周期）http://blog.sina.com.cn/s/blog_4d3559c70102v9z3.html
     https://blog.csdn.net/weixin_39613089/article/details/111800882
 	1.6 你是怎么使用的，为什么？
-	1.7 对newFixedThreadPool的使用，假如有这样一个场景，定长=5，最大=10，当任务执行结束过后，当前线程池中还有线程吗？有几个？为什么？
-	1.8 线程池的线程执行结束后是怎么关闭退出的？
+	1.7 对 newFixedThreadPool 的使用，假如有这样一个场景，定长=5，最大=10，当任务执行结束过后，当前线程池中还有线程吗？有几个？为什么？
+    newFixedThreadPool的 核心线程与最大线程数相等，只能是定长5最大5，只能创建等长的，如果任务执行结束最终会有5个核心线程存活
+    https://baijiahao.baidu.com/s?id=1716723780904911669&wfr=spider&for=pc
+	1.8 线程池的线程执行结束后是怎么关闭退出的？   
 	1.9 四种拒绝策略了解吗？使用过哪几种？为什么？
 	1.10 假如使用拒绝策略CallerRunsPolicy（由调用线程（提交任务的线程）处理该任务），线程池定长=1，如果一直不断的提交线程，总共会出现多少个线程？（n+1）
-    线程数满，阻塞队列满，让调用线程（提交任务的线程）直接执行此任务          =最大线程数+主线程
+    此拒绝策略由调用线程（提交任务的线程）直接执行被丢弃的任务的 线程数满，阻塞队列满，让调用线程（提交任务的线程）直接执行此任务          =最大线程数+主线程
     https://blog.csdn.net/qq_22253853/article/details/107050972
     https://blog.csdn.net/suifeng629/article/details/98884972
 
@@ -758,7 +760,14 @@ jdls面试整理
 	3.1 redis的各种数据结构，以及底层实现？
 	3.2 项目中redis是怎么使用的？集群还是一主两从还是单例
 	3.3 redis锁了解吗？
-	3.4 rdis锁setNX底层怎么实现的？
+	3.4 rdis锁setNX底层怎么实现的？    SETNX KEY_NAME VALUE
+    local ok = redis.call('setnx', key, value)
+    if ok == 1 then
+        redis.call('expire', key, ttl)
+    end
+    
+    redissonlock 
+    redlock红锁（多个实例   实例独立部署 没有主从关系 防止在redis集群各个节点加锁（顺序加锁）的时候，最终加完时出现锁失效的情况）
 	3.5 为什么要使用redison？
 	3.6 setNX和redison的区别？
 	3.7 redis的主从复制原理？
@@ -862,3 +871,13 @@ https://mp.weixin.qq.com/s/YTmeJxxv9eSfBuKIorfuaA
 switch重写（重写器  5个以上的case使用二分法查找）
 
 service 初始化出来后是单例的，每次调用不是重新new出来的，所有里面定义的全局变量一次赋值之后就不变了
+
+
+CountDownLatch:计数器，当计数器上的值变为0时，在CountDownLatch上的await()线程会被唤醒执行
+
+redission：
+底层加锁：判断锁是否存在，如果锁已经存在了，对比一下当前线程，如果线程数同一个，则证明可以重入，更新过期时间；如果不是当前线程，则证明锁没有释放，返回锁到期时间，加锁失败。
+
+
+设计模式：
+开闭原则 单一职责

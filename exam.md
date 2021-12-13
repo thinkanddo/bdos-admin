@@ -272,6 +272,20 @@ vxlan包到达目的网卡，通过udp端口到达VETP设备flannal.1的网卡�
 calico的bgp 不需要封包，通过路由规则转发，
 需要保证双方网络处于同一个交换机上，可以基于mac之间通信
 
+
+calico: 三层的数据中心网络方案
+    etcd
+    calico-node: felix 负责通过iptables配置acls
+                 confd 通过etcd数据，生成更新bird配置
+                 BIRD  容器的路由信息分发到calico网络上
+
+systemd是系统自带的cgroup管理器, 系统初始化就存在的, 和cgroups联系紧密,为每一个进程分配cgroups,  用它管理就行了. 
+如果设置成cgroupfs就存在2个cgroup控制管理器, 实验证明在资源有压力的情况下,会存在不稳定的情况.
+Cgroup是control group的简写，属于Linux内核提供的一个特性，用于限制和隔离一组进程对系统资源的使用，也就是做资源QoS，
+这些资源主要包括CPU、内存、block I/O和网络带宽
+
+
+
 drone比jenkins的优势
 drone的执行模式
 traefik比ingress的优势
@@ -421,7 +435,11 @@ docker
 ```
 docker
 cgroup  namespace
-docker的网络模式
+docker的网络模式    host none bridge container
+
+docker 
+容器 eth0 <-> veth pair ->docker0 网桥
+cmd和endpoint的区别，多条时都会只执行最后一条，都可以指定exec shell执行，但是cmd会被docker run覆盖
 
 
 image  container是谁控制的，怎么控制的

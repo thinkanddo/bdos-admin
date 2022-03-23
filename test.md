@@ -1,41 +1,70 @@
 1.线程池
 	1.1 线程的创建方式
+	
 	1.2 对Future了解吗
+	
 	1.3 线程池中提交一个任务的工作流程？ https://zhuanlan.zhihu.com/p/346255858       https://blog.csdn.net/c10WTiybQ1Ye3/article/details/109684791
+	
 	1.4 线程池的7种参数？
+	
 	1.5 实际工作场景中使用过哪种线程池？（四种线程池，newFixedThreadPool定长、newCachedThreadPool缓存、newSingleThreadExecutor单线程、newScheduledThreadPool定长定时周期）http://blog.sina.com.cn/s/blog_4d3559c70102v9z3.html
+	
     https://blog.csdn.net/weixin_39613089/article/details/111800882
+    
 	1.6 你是怎么使用的，为什么？
+	
 	1.7 对 newFixedThreadPool 的使用，假如有这样一个场景，定长=5，最大=10，当任务执行结束过后，当前线程池中还有线程吗？有几个？为什么？
     newFixedThreadPool的 核心线程与最大线程数相等，只能是定长5最大5，只能创建等长的，如果任务执行结束最终会有5个核心线程存活
+    
     https://baijiahao.baidu.com/s?id=1716723780904911669&wfr=spider&for=pc
+    
 	1.8 线程池的线程执行结束后是怎么关闭退出的？   
+	
 	1.9 四种拒绝策略了解吗？使用过哪几种？为什么？
+	
 	1.10 假如使用拒绝策略CallerRunsPolicy（由调用线程（提交任务的线程）处理该任务），线程池定长=1，如果一直不断的提交线程，总共会出现多少个线程？（n+1）
     此拒绝策略由调用线程（提交任务的线程）直接执行被丢弃的任务的 线程数满，阻塞队列满，让调用线程（提交任务的线程）直接执行此任务          =最大线程数+主线程
-    https://blog.csdn.net/qq_22253853/article/details/107050972
+   
+   https://blog.csdn.net/qq_22253853/article/details/107050972
+   
     https://blog.csdn.net/suifeng629/article/details/98884972
 
+
 2.java锁
+
 	2.1 java锁的分类，可以详细说一下吗？
+	
 	2.2 你是怎么写出一个自旋锁的？while(ture)
+	
 	2.3 自旋锁的ABA问题了解么？怎么解决的？   https://www.cnblogs.com/lvcai/p/13565839.html
+	
 	2.4 公平锁和非公平锁的底层是怎么运行的？
+	
 		公平锁：cpu顺序从队头调度线程
 		非公平锁：cpu随机调度队列中的线程
+		
 	2.5 synchronized锁升级过程，详细说明各种优化是怎么实现的？
+	
 		偏向锁为什么升级到轻量级锁，详细说明怎么实现的？
 		轻量级锁为什么升级到重量级锁，详细说明怎么实现的？
+		
 	2.6 轻量级锁和重量级锁的区别？轻量级锁为什么轻量级？重为什么重？
+	
 		轻量级代码层面实现（自旋），重量级cpu指令实现，笨重浪费资源
         轻量级竞争的时候不会阻塞，不断循环cas获取锁
+	
 	2.7 synchronized和Lock的区别？        https://zhuanlan.zhihu.com/p/83494101
 
 3.redis
+
 	3.1 redis的各种数据结构，以及底层实现？
+	
 	3.2 项目中redis是怎么使用的？集群还是一主两从还是单例
+	
 	3.3 redis锁了解吗？
+	
 	3.4 rdis锁setNX底层怎么实现的？    SETNX KEY_NAME VALUE
+	
     local ok = redis.call('setnx', key, value)
     if ok == 1 then
         redis.call('expire', key, ttl)
@@ -43,12 +72,18 @@
     
     redissonlock 
     redlock红锁（多个实例   实例独立部署 没有主从关系 防止在redis集群各个节点加锁（顺序加锁）的时候，最终加完时出现锁失效的情况）
+    
 	3.5 为什么要使用redison？
+	
 	3.6 setNX和redison的区别？
+	
 	3.7 redis的主从复制原理？
+	
 
 4.kafka
+
 	4.1 消息队列的名词介绍
+	
 	4.2 kafka消息丢失？怎么处理的？
 	4.3 kafka的消息重复消费？
 		 怎么保证消息的幂等性？

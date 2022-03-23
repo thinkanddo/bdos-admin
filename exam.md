@@ -446,6 +446,23 @@ image  container是谁控制的，怎么控制的
 怎么限制a容器的资源，比如限制只能使用几号CPU
 cgroup的层次
 
+#################
+可以详细说一下一次pod的创建流程，以及各个组件在pod创建中的作用吗
+
+k8s是怎么保证消息的实效性，k8s内部的通信机制了解过吗，list-watch机制了解过吗
+简单回答—》https://developer.aliyun.com/article/680204
+详细回答-》https://zhuanlan.zhihu.com/p/59660536
+list-watch有两部分组成，分别是list和watch。list非常好理解，就是调用资源的list API罗列资源，基于HTTP短链接实现；
+watch则是调用资源的watch API监听资源变更事件，基于HTTP 长链接实现，
+
+k8s的网络模型了解过吗，可以介绍一下吗
+https://developer.aliyun.com/article/745437?spm=a2c6h.14164896.0.0.12b257b9u0byyc
+
+k8s是怎么分配ip的，分几次划分集群网络IP段
+https://zhuanlan.zhihu.com/p/67894883
+
+etcd了解过吗，可以说一下etcd的选举机制吗
+#################
 网络:
 ping命令
 arp   路由网关
@@ -732,6 +749,10 @@ mysql锁
 mysql锁怎么优化
 说几个sql优化的方案
 
+spring事务
+mq消息重试和防丢失机制
+mysql的乐观锁和悲观锁
+公平锁和非公平锁，公平锁需要改动什么变为非公平锁
 
 
 
@@ -795,7 +816,18 @@ jdls面试整理
 	4.2 kafka消息丢失？怎么处理的？
 	4.3 kafka的消息重复消费？
 		 怎么保证消息的幂等性？
+         生成全局唯一的id，生产者判断是否接收过，消费者判断是否消费过
 	4.4 消息的可靠性怎么保证？
+    https://zhuanlan.zhihu.com/p/59759422
+
+    kafka防止消息丢失：
+        生产者：多副本 ，先读到内存中，在写到磁盘中，同步到其他的副本上，同步副本完毕之后才会认为写入成功（可以通过参数设置写入规则和同步副本成功最小数），
+        一个副本挂了其他副本工作，
+        消费者：记录offset，topic的一个分区的消息时出现异常，会记录当前失败的offset，进行重试，可以配置重试次数和重试频次；如果重试失败会把当前消息放入到异常队列中，
+        不影响其他的消息正常消费
+
+
+
 
 5.mysql
 	5.1 explain的使用，explain执行后的每个列的含义？
@@ -819,8 +851,14 @@ jdls面试整理
 	7.3 数据量多少？为什么这么设计？
 
 
+事务
+https://zhuanlan.zhihu.com/p/133409146
 
 
+synchronized和volatile的区别
+volatile不需要加锁，比synchronized更轻量级，不会阻塞线程；
+从内存可见性角度，volatile读相当于加锁，volatile写相当于解锁；
+synchronized既能够保证可见性，又能保证原子性，而volatile只能保证可见性，无法保证原子性
 
 AQS:
 抽象队列同步器。如果被请求的共享资源空闲，则将当前请求资源的线程设置为有效的工作线程，并且将共享资源设置为锁定状态。

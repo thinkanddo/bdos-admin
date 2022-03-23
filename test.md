@@ -1,4 +1,5 @@
 1.线程池
+	
 	1.1 线程的创建方式
 	
 	1.2 对Future了解吗
@@ -25,9 +26,9 @@
 	1.10 假如使用拒绝策略CallerRunsPolicy（由调用线程（提交任务的线程）处理该任务），线程池定长=1，如果一直不断的提交线程，总共会出现多少个线程？（n+1）
     此拒绝策略由调用线程（提交任务的线程）直接执行被丢弃的任务的 线程数满，阻塞队列满，让调用线程（提交任务的线程）直接执行此任务          =最大线程数+主线程
    
-   https://blog.csdn.net/qq_22253853/article/details/107050972
+  	 https://blog.csdn.net/qq_22253853/article/details/107050972
    
-    https://blog.csdn.net/suifeng629/article/details/98884972
+    	https://blog.csdn.net/suifeng629/article/details/98884972
 
 
 2.java锁
@@ -124,16 +125,15 @@
 	7.1 详细介绍一下你的项目？
 	7.2 你认为哪个项目有难度？难度在哪儿？项目背景？
 	7.3 数据量多少？为什么这么设计？
-
-
-事务
-https://zhuanlan.zhihu.com/p/133409146
+	7.4 事务 https://zhuanlan.zhihu.com/p/133409146
+	7.5 分布式事物 https://xiaomi-info.github.io/2020/01/02/distributed-transaction/
 
 
 synchronized和volatile的区别
-volatile不需要加锁，比synchronized更轻量级，不会阻塞线程；
-从内存可见性角度，volatile读相当于加锁，volatile写相当于解锁；
-synchronized既能够保证可见性，又能保证原子性，而volatile只能保证可见性，无法保证原子性
+
+	volatile不需要加锁，比synchronized更轻量级，不会阻塞线程；
+	从内存可见性角度，volatile读相当于加锁，volatile写相当于解锁；
+	synchronized既能够保证可见性，又能保证原子性，而volatile只能保证可见性，无法保证原子性
 
 AQS:
 
@@ -176,7 +176,7 @@ AQS:
 
 线程的7种参数：
 
-https://mp.weixin.qq.com/s/YTmeJxxv9eSfBuKIorfuaA
+	0.https://mp.weixin.qq.com/s/YTmeJxxv9eSfBuKIorfuaA
 	1.核心线程数
 	2.总线程数
 	3.存活时间
@@ -204,24 +204,17 @@ https://mp.weixin.qq.com/s/YTmeJxxv9eSfBuKIorfuaA
 	     7.4 CallerRunsPolicy（交给线程池调用所在的线程进行处理)
 
 
+其他
 
-switch重写（重写器  5个以上的case使用二分法查找）
+	switch重写（重写器  5个以上的case使用二分法查找）
+	service 初始化出来后是单例的，每次调用不是重新new出来的，所有里面定义的全局变量一次赋值之后就不变了
+	CountDownLatch:计数器，当计数器上的值变为0时，在CountDownLatch上的await()线程会被唤醒执行
 
-service 初始化出来后是单例的，每次调用不是重新new出来的，所有里面定义的全局变量一次赋值之后就不变了
-
-
-CountDownLatch:计数器，当计数器上的值变为0时，在CountDownLatch上的await()线程会被唤醒执行
-
-redission：
+	redission：
+	底层加锁：判断锁是否存在，如果锁已经存在了，对比一下当前线程，如果线程数同一个，则证明可以重入，更新过期时间；如果不是当前线程，则证明锁没有释放，返回锁到期时间，加锁失败。
 	
-底层加锁：判断锁是否存在，如果锁已经存在了，对比一下当前线程，如果线程数同一个，则证明可以重入，更新过期时间；如果不是当前线程，则证明锁没有释放，返回锁到期时间，加锁失败。
-
-
-
-
-
-
-
+	redis mysql数据一致性的思考 https://www.zhihu.com/question/319817091  
+	
 
 
 java锁：
@@ -245,8 +238,10 @@ java锁：
     公平锁和非公平锁，底层都是使用AQS来进行排队，线程被加入了等待队列之后，两者就没有区别
     区别在于新晋获取锁的线程，如果是非公平锁会有很多机会去抢占锁
     (6)分段锁
-    ConcurrentHashMap 中的分段锁称为Segment，类似于HashMap（JDK7与JDK8中HashMap的实现）的结构，即内部拥有一个Entry数组，数组中的每个元素又是一个链表；同时又是一个ReentrantLock（Segment继承了ReentrantLock)。
-    当需要put元素的时候，并不是对整个hashmap进行加锁，而是先通过hashcode来知道他要放在哪一个分段中，然后对这个分段进行加锁，所以当多线程put的时候，只要不是放在一个分段中，就实现了真正的并行的插入。
+    ConcurrentHashMap 中的分段锁称为Segment，类似于HashMap（JDK7与JDK8中HashMap的实现）的结构，即内部拥有一个Entry数组，数组中的每个元素又是一个链表；
+    同时又是一个ReentrantLock（Segment继承了ReentrantLock)。
+    当需要put元素的时候，并不是对整个hashmap进行加锁，而是先通过hashcode来知道他要放在哪一个分段中，然后对这个分段进行加锁，所以当多线程put的时候，只要不是放在一个分段中
+    ，就实现了真正的并行的插入。
 
 
 
@@ -288,8 +283,7 @@ jvm内存：
             Major GC：当老年代空间不足时触发 标记-清除算法（扫描老年代所有对象，标记存活对象，回收未标记的对象）
             Full  GC：系统gc 老年代空间不足 方法区空间不足
 
-redis mysql数据一致性的思考
-https://www.zhihu.com/question/319817091
+
 
 多线程：
 	
@@ -307,46 +301,42 @@ https://www.zhihu.com/question/319817091
 
 
 
+ceph:
 
-
-
-
-
-
-
-
-cephfs致力于文件系统接口，
-	
+	cephfs致力于文件系统接口，
 	cephfs选择以目录树的形式内存管理和使用元数据信息
-mds每次针对目录树的操作都是先写日志，再修改内存目录树结构，最后将修改的结果落盘
-目录树的三个关键数据结构  inode dentry 和 dir
-    inode: 存储具体文件和目录的元信息，inode是用来在metapool或datapool中查找对应的对象 （dir 或 文件）
-    dentry：存储的是文件或目录的名字，用来连接inode和dir
-    dir：通过items map记录自己管理的目录项dentry，且拥有一个和自己相连接的inode，通过inode可以继续向上回溯目录树
+	mds每次针对目录树的操作都是先写日志，再修改内存目录树结构，最后将修改的结果落盘
+	目录树的三个关键数据结构  inode dentry 和 dir
+	    inode: 存储具体文件和目录的元信息，inode是用来在metapool或datapool中查找对应的对象 （dir 或 文件）
+	    dentry：存储的是文件或目录的名字，用来连接inode和dir
+	    dir：通过items map记录自己管理的目录项dentry，且拥有一个和自己相连接的inode，通过inode可以继续向上回溯目录树
 
-CephFS为什么需要部署MDS以及MDS的作用：
-	
-        1.1.启用CephFS接口需要在基础的Rados-Cluster存储集群之上需要额外运行一个MDS（Metadata-Server元数据服务器）的守护进程，由于Rados-Cluster本身就是一个对象存储服务，Rados-Cluster是没办法分开管理上面所说的传统文件系统中的数据和元数据的功能；
-        1.2.因此MDS是专用于模拟传统文件系统所应该具有的将数据和元数据分离存储的方式而专门提供的一个守护进程服务。而且MDS只用来管理元数据；CephFS依赖于专用的MDS（MetaData-Server）组件管理元数据信息并向客户端输出一个倒置的树状层级结构： 
+	CephFS为什么需要部署MDS以及MDS的作用：
+        1.1.启用CephFS接口需要在基础的Rados-Cluster存储集群之上需要额外运行一个MDS（Metadata-Server元数据服务器）的守护进程，
+	由于Rados-Cluster本身就是一个对象存储服务，Rados-Cluster是没办法分开管理上面所说的传统文件系统中的数据和元数据的功能；
+        1.2.因此MDS是专用于模拟传统文件系统所应该具有的将数据和元数据分离存储的方式而专门提供的一个守护进程服务。
+	而且MDS只用来管理元数据；CephFS依赖于专用的MDS（MetaData-Server）组件管理元数据信息并向客户端输出一个倒置的树状层级结构： 
             1.将元数据先缓存于MDS的内存中然后再同步到Metadatapool,可以加快元数据的访问
             2.将cephfs的元数据的更新日志journal流式化后存储在RADOS集群上，journal日志是用来恢复mds里的元数据缓存。
             3.重启mds的时候会通过replay的方式从osd上加载之前缓存的元数据
             4.保存了文件系统的元数据(对象里保存了子目录和子文件的名称和inode编号)
         1.3.客户端(ceph.ko)-->MDS-->Rados-Cluster
-            客户端要想使用ceph文件系统接口，内核级必须有对应的文件系统模块与之支持也就是ceph.ko模块，ceph.ko作为客户端每一次访问文件时必须基于套接字先连入到MDS来获取、返回文件的inode元数据信息，然后ceph.ko再到Rados-Cluster上以对象的方式把对象模拟成传统文件系统的"块"来加载文件的数据完成文件存取操作。
+            客户端要想使用ceph文件系统接口，内核级必须有对应的文件系统模块与之支持也就是ceph.ko模块，ceph.ko作为客户端每一次访问文件时必须基于套接字先连入到MDS来获取、
+	    返回文件的inode元数据信息，然后ceph.ko再到Rados-Cluster上以对象的方式把对象模拟成传统文件系统的"块"来加载文件的数据完成文件存取操作。
 
-
-
-CephFS需要元数据存储池(metadatapool)和数据存储池(datapool)
+	CephFS需要元数据存储池(metadatapool)和数据存储池(datapool)
 	
-        1.不管是RBD、CephFS、RadosGW，在Ceph（Rados-Cluster）上所有数据都应该先放在存储池pool中再映射到OSD上，而CephFS文件系统管理其数据和元数据时是分别放置在不同的存储池中进行的；
+        1.不管是RBD、CephFS、RadosGW，在Ceph（Rados-Cluster）上所有数据都应该先放在存储池pool中再映射到OSD上，
+	而CephFS文件系统管理其数据和元数据时是分别放置在不同的存储池中进行的；
         2.Metadata Pool
             1.所有的元数据都是由MDS守护进程管理的，可以理解为：MDS作为客户端连入Rados-Cluster的CephFS的metadata-pool存储池存储元数据；
-            2.而元数据是一类很密集的IO访问，需要占用的空间不大，但是对于性能的要求比较高，所以Metadata-Server会在本地使用内存当做高速缓存，所有操作都先在内存中完成，一段时间后再同步到MetadataPool当中实现元数据存储的.
+            2.而元数据是一类很密集的IO访问，需要占用的空间不大，但是对于性能的要求比较高，所以Metadata-Server会在本地使用内存当做高速缓存，
+	    所有操作都先在内存中完成，一段时间后再同步到MetadataPool当中实现元数据存储的.
         3.datapool
             数据直接写入datapool存储池
         4.需要注意的是：CephFS的Matadatapool一定只能被MDS访问（客户端是不能直接访问的），客户端对元数据的访问必须经由MDS来实现：
-            当客户端打开一个数据时，它首先会向MDS请求此数据的inode,inode信息会告诉客户端此数据所有对象存放datapool中的位置和编号，然后客户端基于编号就可以加载到所有对象并访问到数据了。
+        当客户端打开一个数据时，它首先会向MDS请求此数据的inode,inode信息会告诉客户端此数据所有对象存放datapool中的位置和编号，
+	然后客户端基于编号就可以加载到所有对象并访问到数据了。
 
 
 大家好，我叫xxx，2017年毕业于
